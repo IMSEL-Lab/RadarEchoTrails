@@ -1,247 +1,358 @@
-use std::fs;
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
+//! Frame Trails GUI - Main Entry Point
+//! 
+//! A graphical interface for batch generating frame trails from image sequences.
 
-use anyhow::{Context, Result, anyhow};
-use clap::Parser;
-use image::{ImageBuffer, Rgba, RgbaImage};
-use rayon::prelude::*;
+slint::include_modules!();
 
-/// Simple color holder
-#[derive(Clone, Copy, Debug)]
-struct Color {
-    r: u8,
-    g: u8,
-    b: u8,
-}
+mod processing;
+mod queue;
+mod config;
 
-impl Color {
-    fn from_hex(s: &str) -> Result<Self> {
-        let trimmed = s.trim_start_matches('#');
-        if trimmed.len() != 6 {
-            return Err(anyhow!("color must be 6 hex digits (e.g. #RRGGBB)"));
-        }
-        let r = u8::from_str_radix(&trimmed[0..2], 16)?;
-        let g = u8::from_str_radix(&trimmed[2..4], 16)?;
-        let b = u8::from_str_radix(&trimmed[4..6], 16)?;
-        Ok(Color { r, g, b })
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{mpsc, Arc};
+use std::thread;
+
+use slint::{ModelRc, SharedString, VecModel};
+
+fn main() -> Result<(), slint::PlatformError> {
+    let ui = AppWindow::new()?;
+    
+    // Shared state
+    let folders: Rc<RefCell<Vec<queue::FolderInfo>>> = Rc::new(RefCell::new(Vec::new()));
+    let processing_handle: Rc<RefCell<Option<thread::JoinHandle<()>>>> = Rc::new(RefCell::new(None));
+    let stop_flag: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+    // Keep timer alive by storing it in shared state
+    let progress_timer: Rc<RefCell<Option<slint::Timer>>> = Rc::new(RefCell::new(None));
+
+    
+    // Load saved settings
+    if let Ok(settings) = config::load_settings() {
+        ui.set_history_length(settings.history_length);
+        ui.set_background_color(settings.background_color.into());
+        ui.set_current_color(settings.current_color.into());
+        ui.set_history_color(settings.history_color.into());
+        ui.set_threads(settings.threads);
+        ui.set_limit(settings.limit);
     }
-
-    fn to_rgba(self, a: u8) -> Rgba<u8> {
-        Rgba([self.r, self.g, self.b, a])
-    }
-}
-
-#[derive(Parser, Debug)]
-#[command(author, version, about = "Overlay frames with fading history", long_about = None)]
-struct Cli {
-    /// Directory containing input frames (PNG recommended)
-    #[arg(short, long, value_name = "DIR")]
-    input_dir: PathBuf,
-
-    /// Directory to write the composited frames
-    #[arg(short, long, value_name = "DIR", default_value = "output_frames")]
-    output_dir: PathBuf,
-
-    /// Number of previous frames to keep visible (will fade to 0 by this age)
-    #[arg(short = 'n', long, default_value_t = 5)]
-    history_length: usize,
-
-    /// Optional cap on number of frames to process (useful for quick tests)
-    #[arg(long)]
-    limit: Option<usize>,
-
-    /// Number of worker threads (default: all logical cores)
-    #[arg(short = 't', long)]
-    threads: Option<usize>,
-
-    /// Background color hex (#RRGGBB)
-    #[arg(long, default_value = "#000000")]
-    background: String,
-
-    /// Current frame color hex (#RRGGBB)
-    #[arg(long, default_value = "#00ff00")]
-    current_color: String,
-
-    /// History frame color hex (#RRGGBB)
-    #[arg(long, default_value = "#ff7f00")]
-    history_color: String,
-}
-
-fn main() -> Result<()> {
-    let args = Cli::parse();
-
-    if let Some(t) = args.threads {
-        rayon::ThreadPoolBuilder::new()
-            .num_threads(t)
-            .build_global()
-            .context("failed to configure thread pool")?;
-    }
-
-    if args.history_length == 0 {
-        return Err(anyhow!("history_length must be at least 1"));
-    }
-
-    let bg = Color::from_hex(&args.background)?;
-    let current = Color::from_hex(&args.current_color)?;
-    let history = Color::from_hex(&args.history_color)?;
-
-    let mut entries: Vec<PathBuf> = fs::read_dir(&args.input_dir)?
-        .filter_map(|e| e.ok())
-        .map(|e| e.path())
-        .filter(|p| p.is_file())
-        .filter(|p| {
-            p.extension()
-                .and_then(|ext| ext.to_str())
-                .map(|ext| matches_ignore_case(ext, &["png", "jpg", "jpeg", "bmp", "tga", "gif"]))
-                .unwrap_or(false)
-        })
-        .collect();
-    entries.sort();
-
-    if let Some(limit) = args.limit {
-        entries.truncate(limit);
-    }
-
-    if entries.is_empty() {
-        return Err(anyhow!("input directory is empty"));
-    }
-
-    fs::create_dir_all(&args.output_dir)?;
-
-    // Load all frames once; assumes consistent dimensions.
-    let frames: Vec<RgbaImage> = entries
-        .iter()
-        .map(|path| {
-            image::open(path)
-                .with_context(|| format!("failed to open {}", path.display()))?
-                .to_rgba8()
-                .pipe(Ok)
-        })
-        .collect::<Result<Vec<_>>>()?;
-
-    let (width, height) = frames[0].dimensions();
-    for (idx, frame) in frames.iter().enumerate() {
-        if frame.dimensions() != (width, height) {
-            return Err(anyhow!(
-                "frame {} has different dimensions; all frames must match",
-                entries[idx].display()
-            ));
-        }
-    }
-
-    let counter = AtomicUsize::new(0);
-
-    frames
-        .par_iter()
-        .enumerate()
-        .try_for_each(|(i, frame)| -> Result<()> {
-            let mut canvas: RgbaImage = ImageBuffer::from_pixel(width, height, bg.to_rgba(255));
-
-            let max_age = args.history_length.min(i);
-            // Oldest first so newer history is on top.
-            for age in (1..=max_age).rev() {
-                let src = &frames[i - age];
-                let fade = (args.history_length as f32 - age as f32) / args.history_length as f32;
-                overlay_tinted(&mut canvas, src, history, fade.max(0.0));
-            }
-
-            // Current frame last, fully opaque where non-empty
-            overlay_current(&mut canvas, frame, current);
-
-            let out_name = entries[i]
-                .file_name()
-                .map(|n| n.to_owned())
-                .ok_or_else(|| anyhow!("bad filename"))?;
-            let mut out_path = args.output_dir.clone();
-            out_path.push(out_name);
-            image::save_buffer(&out_path, &canvas, width, height, image::ColorType::Rgba8)
-                .with_context(|| format!("failed to save {}", out_path.display()))?;
-
-            let done = counter.fetch_add(1, Ordering::Relaxed) + 1;
-            if done % 25 == 0 || done == frames.len() {
-                println!("processed {} / {}", done, frames.len());
-            }
-            Ok(())
-        })?;
-
-    println!(
-        "done. wrote {} frames to {}",
-        frames.len(),
-        args.output_dir.display()
-    );
-    Ok(())
-}
-
-/// Overlay `src` onto `dst`, tinting to `color` and scaling alpha by `fade` (0.0-1.0).
-fn overlay_tinted(dst: &mut RgbaImage, src: &RgbaImage, color: Color, fade: f32) {
-    let (w, h) = dst.dimensions();
-    for y in 0..h {
-        for x in 0..w {
-            let sp = src.get_pixel(x, y);
-            let sa = sp[3] as f32 / 255.0;
-            if sa == 0.0 {
-                continue;
-            }
-            let alpha = (sa * fade).clamp(0.0, 1.0);
-            if alpha <= 0.0 {
-                continue;
-            }
-            let tinted = Rgba([color.r, color.g, color.b, (alpha * 255.0).round() as u8]);
-            blend_pixel(dst.get_pixel_mut(x, y), tinted);
-        }
-    }
-}
-
-/// Overlay current frame: any non-transparent pixel becomes the current color at full opacity.
-fn overlay_current(dst: &mut RgbaImage, src: &RgbaImage, color: Color) {
-    let (w, h) = dst.dimensions();
-    for y in 0..h {
-        for x in 0..w {
-            let sp = src.get_pixel(x, y);
-            if sp[3] == 0 {
-                continue;
-            }
-            let tinted = Rgba([color.r, color.g, color.b, 255]);
-            blend_pixel(dst.get_pixel_mut(x, y), tinted);
-        }
-    }
-}
-
-/// Alpha blend `src` over `dst` (premultiplied-style math).
-fn blend_pixel(dst: &mut Rgba<u8>, src: Rgba<u8>) {
-    let da = dst[3] as f32 / 255.0;
-    let sa = src[3] as f32 / 255.0;
-    let out_a = sa + da * (1.0 - sa);
-
-    let blend = |dc: u8, sc: u8| -> u8 {
-        let dc = dc as f32 / 255.0;
-        let sc = sc as f32 / 255.0;
-        if out_a == 0.0 {
-            0
-        } else {
-            (((sc * sa) + dc * da * (1.0 - sa)) / out_a * 255.0).round() as u8
-        }
-    };
-
-    dst[0] = blend(dst[0], src[0]);
-    dst[1] = blend(dst[1], src[1]);
-    dst[2] = blend(dst[2], src[2]);
-    dst[3] = (out_a * 255.0).round() as u8;
-}
-
-// Small helper to allow ? after map/pipe
-trait Pipe: Sized {
-    fn pipe<F, T>(self, f: F) -> T
-    where
-        F: FnOnce(Self) -> T,
+    
+    // Add folder callback
     {
-        f(self)
+        let ui_weak = ui.as_weak();
+        let folders = folders.clone();
+        ui.on_add_folder(move || {
+            let ui = ui_weak.unwrap();
+            if let Some(path) = rfd::FileDialog::new()
+                .set_title("Select folder containing image frames")
+                .pick_folder()
+            {
+                let image_count = queue::count_image_files(&path);
+                let folder_name = path.file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("Unknown")
+                    .to_string();
+                
+                let folder_info = queue::FolderInfo {
+                    path: path.clone(),
+                    name: folder_name.clone(),
+                    file_count: image_count,
+                    status: queue::FolderStatus::Pending,
+                    progress: 0.0,
+                    error_message: None,
+                };
+                
+                folders.borrow_mut().push(folder_info);
+                update_folder_model(&ui, &folders.borrow());
+            }
+        });
     }
+    
+    // Remove folder callback
+    {
+        let ui_weak = ui.as_weak();
+        let folders = folders.clone();
+        ui.on_remove_folder(move |index| {
+            let ui = ui_weak.unwrap();
+            let mut folders_mut = folders.borrow_mut();
+            if (index as usize) < folders_mut.len() {
+                folders_mut.remove(index as usize);
+                drop(folders_mut);
+                update_folder_model(&ui, &folders.borrow());
+            }
+        });
+    }
+    
+    // Move folder up callback
+    {
+        let ui_weak = ui.as_weak();
+        let folders = folders.clone();
+        ui.on_move_folder_up(move |index| {
+            let ui = ui_weak.unwrap();
+            let mut folders_mut = folders.borrow_mut();
+            if index > 0 && (index as usize) < folders_mut.len() {
+                folders_mut.swap(index as usize, (index - 1) as usize);
+                drop(folders_mut);
+                update_folder_model(&ui, &folders.borrow());
+            }
+        });
+    }
+    
+    // Move folder down callback
+    {
+        let ui_weak = ui.as_weak();
+        let folders = folders.clone();
+        ui.on_move_folder_down(move |index| {
+            let ui = ui_weak.unwrap();
+            let mut folders_mut = folders.borrow_mut();
+            if ((index + 1) as usize) < folders_mut.len() {
+                folders_mut.swap(index as usize, (index + 1) as usize);
+                drop(folders_mut);
+                update_folder_model(&ui, &folders.borrow());
+            }
+        });
+    }
+    
+    // Clear queue callback
+    {
+        let ui_weak = ui.as_weak();
+        let folders = folders.clone();
+        ui.on_clear_queue(move || {
+            let ui = ui_weak.unwrap();
+            folders.borrow_mut().clear();
+            update_folder_model(&ui, &folders.borrow());
+        });
+    }
+    
+    // Settings changed callback
+    {
+        ui.on_settings_changed(move |history_length, background_color, current_color, history_color, threads, limit| {
+            let settings = config::Settings {
+                history_length,
+                background_color: background_color.to_string(),
+                current_color: current_color.to_string(),
+                history_color: history_color.to_string(),
+                threads,
+                limit,
+            };
+            let _ = config::save_settings(&settings);
+        });
+    }
+    
+    // Start processing callback
+    {
+        let ui_weak = ui.as_weak();
+        let folders = folders.clone();
+        let processing_handle = processing_handle.clone();
+        let stop_flag = stop_flag.clone();
+        let progress_timer = progress_timer.clone();
+        
+        ui.on_start_processing(move || {
+            let ui = ui_weak.unwrap();
+
+            
+            // Don't start if already processing
+            if ui.get_is_processing() {
+                return;
+            }
+            
+            // Reset stop flag
+            stop_flag.store(false, Ordering::Relaxed);
+            
+            // Get settings
+            let settings = processing::ProcessingSettings {
+                history_length: ui.get_history_length() as usize,
+                background_color: ui.get_background_color().to_string(),
+                current_color: ui.get_current_color().to_string(),
+                history_color: ui.get_history_color().to_string(),
+                threads: ui.get_threads() as usize,
+                limit: if ui.get_limit() == 0 { None } else { Some(ui.get_limit() as usize) },
+            };
+            
+            // Get folder list
+            let folder_list: Vec<queue::FolderInfo> = folders.borrow().clone();
+            if folder_list.is_empty() {
+                return;
+            }
+            
+            // Create progress channel
+            let (tx, rx) = mpsc::channel::<processing::ProgressUpdate>();
+            
+            // Update UI state
+            ui.set_is_processing(true);
+            ui.set_is_complete(false);
+            ui.set_status_text("Starting...".into());
+            ui.set_folders_completed(0);
+            ui.set_files_completed(0);
+            ui.set_files_total(0);
+            ui.set_overall_progress(0.0);
+            
+            // Reset progress for all folders
+            {
+                let mut folders_mut = folders.borrow_mut();
+                for folder in folders_mut.iter_mut() {
+                    folder.status = queue::FolderStatus::Pending;
+                    folder.progress = 0.0;
+                }
+            }
+            update_folder_model(&ui, &folders.borrow());
+            
+            // Spawn processing thread
+            let stop_flag_clone = stop_flag.clone();
+            let handle = thread::spawn(move || {
+                processing::process_folders(folder_list, settings, tx, stop_flag_clone);
+            });
+            
+            *processing_handle.borrow_mut() = Some(handle);
+            
+            // Set up progress polling
+            let ui_weak_poll = ui.as_weak();
+            let folders_poll = folders.clone();
+            let processing_handle_poll = processing_handle.clone();
+            
+            let timer = slint::Timer::default();
+            timer.start(
+                slint::TimerMode::Repeated,
+                std::time::Duration::from_millis(50),
+                move || {
+                    let ui = match ui_weak_poll.upgrade() {
+                        Some(ui) => ui,
+                        None => return,
+                    };
+                    
+                    // Process all pending updates
+                    while let Ok(update) = rx.try_recv() {
+                        match update {
+                            processing::ProgressUpdate::FolderStarted { folder_index, folder_name } => {
+                                ui.set_current_folder(folder_name.into());
+                                ui.set_status_text(SharedString::from(format!("Processing folder {}", folder_index + 1)));
+                                
+                                let mut folders_mut = folders_poll.borrow_mut();
+                                if folder_index < folders_mut.len() {
+                                    folders_mut[folder_index].status = queue::FolderStatus::Processing;
+                                }
+                                drop(folders_mut);
+                                update_folder_model(&ui, &folders_poll.borrow());
+                            }
+                            processing::ProgressUpdate::FileProgress { 
+                                folder_index, 
+                                files_done, 
+                                files_total, 
+                                current_file,
+                                files_per_second,
+                            } => {
+                                let folder_progress = files_done as f32 / files_total.max(1) as f32;
+                                ui.set_folder_progress(folder_progress);
+                                ui.set_files_completed(files_done as i32);
+                                ui.set_files_total(files_total as i32);
+                                ui.set_current_file(current_file.into());
+                                ui.set_files_per_second(files_per_second as f32);
+                                
+                                // Update folder progress
+                                let mut folders_mut = folders_poll.borrow_mut();
+                                if folder_index < folders_mut.len() {
+                                    folders_mut[folder_index].progress = folder_progress;
+                                }
+                                drop(folders_mut);
+                                update_folder_model(&ui, &folders_poll.borrow());
+                                
+                                // Calculate ETA
+                                if files_per_second > 0.0 {
+                                    let remaining = files_total - files_done;
+                                    let eta_secs = (remaining as f64 / files_per_second) as u64;
+                                    let eta_mins = eta_secs / 60;
+                                    let eta_secs_rem = eta_secs % 60;
+                                    ui.set_eta_text(SharedString::from(format!("{:02}:{:02}", eta_mins, eta_secs_rem)));
+                                }
+                            }
+                            processing::ProgressUpdate::FolderCompleted { folder_index } => {
+                                let mut folders_mut = folders_poll.borrow_mut();
+                                if folder_index < folders_mut.len() {
+                                    folders_mut[folder_index].status = queue::FolderStatus::Complete;
+                                    folders_mut[folder_index].progress = 1.0;
+                                }
+                                ui.set_folders_completed(ui.get_folders_completed() + 1);
+                                
+                                // Update overall progress
+                                let total_folders = folders_mut.len() as f32;
+                                let completed = folders_mut.iter()
+                                    .filter(|f| matches!(f.status, queue::FolderStatus::Complete))
+                                    .count() as f32;
+                                ui.set_overall_progress(completed / total_folders);
+                                
+                                drop(folders_mut);
+                                update_folder_model(&ui, &folders_poll.borrow());
+                            }
+                            processing::ProgressUpdate::FolderError { folder_index, error } => {
+                                let mut folders_mut = folders_poll.borrow_mut();
+                                if folder_index < folders_mut.len() {
+                                    folders_mut[folder_index].status = queue::FolderStatus::Error;
+                                    folders_mut[folder_index].error_message = Some(error);
+                                }
+                                drop(folders_mut);
+                                update_folder_model(&ui, &folders_poll.borrow());
+                            }
+                            processing::ProgressUpdate::AllComplete => {
+                                ui.set_is_processing(false);
+                                ui.set_is_complete(true);
+                                ui.set_overall_progress(1.0);
+                                ui.set_status_text("Processing complete!".into());
+                                ui.set_eta_text("--:--".into());
+                                
+                                // Clean up handle
+                                if let Some(handle) = processing_handle_poll.borrow_mut().take() {
+                                    let _ = handle.join();
+                                }
+                            }
+                            processing::ProgressUpdate::Cancelled => {
+                                ui.set_is_processing(false);
+                                ui.set_status_text("Cancelled".into());
+                                
+                                // Clean up handle
+                                if let Some(handle) = processing_handle_poll.borrow_mut().take() {
+                                    let _ = handle.join();
+                                }
+                            }
+                        }
+                    }
+                },
+            );
+            
+            // Store timer to keep it alive
+            *progress_timer.borrow_mut() = Some(timer);
+        });
+    }
+
+    
+    // Stop processing callback
+    {
+        let stop_flag = stop_flag.clone();
+        ui.on_stop_processing(move || {
+            stop_flag.store(true, Ordering::Relaxed);
+        });
+    }
+    
+    ui.run()
 }
 
-impl<T> Pipe for T {}
-
-fn matches_ignore_case(ext: &str, list: &[&str]) -> bool {
-    list.iter().any(|e| e.eq_ignore_ascii_case(ext))
+/// Update the folder model in the UI from the internal state
+fn update_folder_model(ui: &AppWindow, folders: &[queue::FolderInfo]) {
+    let items: Vec<FolderItem> = folders.iter().map(|f| {
+        FolderItem {
+            path: f.path.to_string_lossy().to_string().into(),
+            name: f.name.clone().into(),
+            file_count: f.file_count as i32,
+            status: match f.status {
+                queue::FolderStatus::Pending => "pending".into(),
+                queue::FolderStatus::Processing => "processing".into(),
+                queue::FolderStatus::Complete => "complete".into(),
+                queue::FolderStatus::Error => "error".into(),
+            },
+            progress: f.progress,
+            error_message: f.error_message.clone().unwrap_or_default().into(),
+        }
+    }).collect();
+    
+    let model = Rc::new(VecModel::from(items));
+    ui.set_folders(ModelRc::from(model));
 }

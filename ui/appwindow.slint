@@ -1,0 +1,239 @@
+// ============================================================================
+// FRAME TRAILS GUI - MAIN WINDOW
+// ============================================================================
+// Main application window for batch frame trails generation
+
+import { MaterialPalette } from "material/ui/styling/material_palette.slint";
+import {
+    MaterialTypography,
+} from "material/ui/styling/material_typography.slint";
+import {
+    MaterialStyleMetrics,
+} from "material/ui/styling/material_style_metrics.slint";
+import { MaterialText } from "material/ui/components/material_text.slint";
+
+import { AppTheme } from "app_theme.slint";
+import { TopBar } from "components/top_bar.slint";
+import { FolderQueue, FolderItem } from "components/folder_queue.slint";
+import { SettingsPanel } from "components/settings_panel.slint";
+import { ProgressPanel } from "components/progress_panel.slint";
+import { BottomBar } from "components/bottom_bar.slint";
+
+// ============================================================================
+// MAIN APPLICATION WINDOW
+// ============================================================================
+export component AppWindow inherits Window {
+    title: "Frame Trails Generator";
+    min-width: 900px;
+    min-height: 600px;
+    background: MaterialPalette.background;
+
+    // ========================================================================
+    // THEME MANAGEMENT
+    // ========================================================================
+    in-out property <string> theme-setting: "dark";
+
+    init => {
+        if (root.theme-setting == "dark") {
+            MaterialPalette.color-scheme = ColorScheme.dark;
+        } else {
+            MaterialPalette.color-scheme = ColorScheme.light;
+        }
+    }
+
+    // ========================================================================
+    // FOLDER QUEUE STATE
+    // ========================================================================
+    in-out property <[FolderItem]> folders: [];
+    in-out property <int> selected-folder-index: -1;
+
+    // ========================================================================
+    // SETTINGS STATE
+    // ========================================================================
+    in-out property <int> history-length: 5;
+    in-out property <string> background-color: "#000000";
+    in-out property <string> current-color: "#00ff00";
+    in-out property <string> history-color: "#ff7f00";
+    in-out property <int> threads: 0;
+    in-out property <int> limit: 0;
+
+    // ========================================================================
+    // PROCESSING STATE
+    // ========================================================================
+    in-out property <bool> is-processing: false;
+    in-out property <bool> is-complete: false;
+    in-out property <float> overall-progress: 0.0;
+    in-out property <int> folders-completed: 0;
+    in-out property <float> folder-progress: 0.0;
+    in-out property <int> files-completed: 0;
+    in-out property <int> files-total: 0;
+    in-out property <string> current-file: "";
+    in-out property <string> current-folder: "";
+    in-out property <string> eta-text: "--:--";
+    in-out property <float> files-per-second: 0.0;
+    in-out property <string> status-text: "Ready";
+
+    // ========================================================================
+    // UI STATE
+    // ========================================================================
+    in-out property <bool> sidebar-visible: true;
+
+    // ========================================================================
+    // CALLBACKS
+    // ========================================================================
+    callback add-folder();
+    callback remove-folder(int);
+    callback move-folder-up(int);
+    callback move-folder-down(int);
+    callback clear-queue();
+    callback start-processing();
+    callback stop-processing();
+    callback settings-changed(int, string, string, string, int, int);
+
+    // ========================================================================
+    // MAIN LAYOUT
+    // ========================================================================
+    VerticalLayout {
+        // ====================================================================
+        // TOP BAR
+        // ====================================================================
+        TopBar {
+            is-processing: root.is-processing;
+            has-folders: root.folders.length > 0;
+
+            file-add-folder => {
+                root.add-folder();
+            }
+            file-clear-queue => {
+                root.clear-queue();
+            }
+            view-toggle-sidebar => {
+                root.sidebar-visible = !root.sidebar-visible;
+            }
+            view-theme-dark => {
+                root.theme-setting = "dark";
+                MaterialPalette.color-scheme = ColorScheme.dark;
+            }
+            view-theme-light => {
+                root.theme-setting = "light";
+                MaterialPalette.color-scheme = ColorScheme.light;
+            }
+            tools-settings => {
+            }
+            start-processing => {
+                root.start-processing();
+            }
+            stop-processing => {
+                root.stop-processing();
+            }
+        }
+
+        // ====================================================================
+        // MAIN CONTENT
+        // ====================================================================
+        HorizontalLayout {
+            vertical-stretch: 1;
+
+            // ================================================================
+            // LEFT SIDEBAR
+            // ================================================================
+            if root.sidebar-visible: Rectangle {
+                width: 280px;
+                background: MaterialPalette.surface-container-low;
+
+                VerticalLayout {
+                    // Folder Queue
+                    FolderQueue {
+                        vertical-stretch: 1;
+                        folders: root.folders;
+                        selected-index: root.selected-folder-index;
+
+                        add-folder => {
+                            root.add-folder();
+                        }
+                        remove-folder(idx) => {
+                            root.remove-folder(idx);
+                        }
+                        move-up(idx) => {
+                            root.move-folder-up(idx);
+                        }
+                        move-down(idx) => {
+                            root.move-folder-down(idx);
+                        }
+                        select-folder(idx) => {
+                            root.selected-folder-index = idx;
+                        }
+                    }
+
+                    // Divider
+                    Rectangle {
+                        height: 1px;
+                        background: MaterialPalette.outline-variant;
+                    }
+
+                    // Settings Panel
+                    SettingsPanel {
+                        history-length <=> root.history-length;
+                        background-color <=> root.background-color;
+                        current-color <=> root.current-color;
+                        history-color <=> root.history-color;
+                        threads <=> root.threads;
+                        limit <=> root.limit;
+
+                        settings-changed => {
+                            root.settings-changed(
+                                root.history-length,
+                                root.background-color,
+                                root.current-color,
+                                root.history-color,
+                                root.threads,
+                                root.limit);
+                        }
+                    }
+                }
+
+                // Right border
+                Rectangle {
+                    x: parent.width - 1px;
+                    width: 1px;
+                    height: 100%;
+                    background: MaterialPalette.outline-variant;
+                }
+            }
+
+            // ================================================================
+            // MAIN AREA - PROGRESS
+            // ================================================================
+            Rectangle {
+                horizontal-stretch: 1;
+                background: MaterialPalette.surface-container-lowest;
+
+                ProgressPanel {
+                    overall-progress: root.overall-progress;
+                    folders-completed: root.folders-completed;
+                    folders-total: root.folders.length;
+                    folder-progress: root.folder-progress;
+                    files-completed: root.files-completed;
+                    files-total: root.files-total;
+                    current-file: root.current-file;
+                    current-folder: root.current-folder;
+                    eta-text: root.eta-text;
+                    files-per-second: root.files-per-second;
+                    is-processing: root.is-processing;
+                    is-complete: root.is-complete;
+                }
+            }
+        }
+
+        // ====================================================================
+        // BOTTOM BAR
+        // ====================================================================
+        BottomBar {
+            status-text: root.status-text;
+            folders-in-queue: root.folders.length;
+            is-processing: root.is-processing;
+            history-length: root.history-length;
+            threads: root.threads;
+        }
+    }
+}
