@@ -1,15 +1,12 @@
 // ============================================================================
 // TOP BAR COMPONENT - FRAME TRAILS
 // ============================================================================
-// Menu bar matching annotator style
+// Simplified menu bar
 
 import { MaterialPalette } from "../material/ui/styling/material_palette.slint";
 import {
     MaterialTypography,
 } from "../material/ui/styling/material_typography.slint";
-import {
-    MaterialStyleMetrics,
-} from "../material/ui/styling/material_style_metrics.slint";
 import { MaterialText } from "../material/ui/components/material_text.slint";
 import { Icon } from "../material/ui/components/icon.slint";
 import { Icons } from "../material/ui/icons/icons.slint";
@@ -55,68 +52,22 @@ component MenuButton inherits Rectangle {
     }
 }
 
-// ============================================================================
-// ACTION BUTTON COMPONENT
-// ============================================================================
-component ActionButton inherits Rectangle {
-    in property <string> text;
-    in property <bool> enabled: true;
-    in property <color> bg-color: MaterialPalette.primary-container;
-    in property <color> bg-hover-color: MaterialPalette.primary;
-    in property <color> bg-disabled-color: MaterialPalette.surface-container;
-    in property <color> text-color: MaterialPalette.on-primary-container;
-    in property <color> text-hover-color: MaterialPalette.on-primary;
-    in property <color> text-disabled-color: MaterialPalette.outline;
-    callback clicked();
-
-    width: 90px;
-    height: 32px;
-    border-radius: 4px;
-    background: !root.enabled ? root.bg-disabled-color : (touch.has-hover ? root.bg-hover-color : root.bg-color);
-
-    MaterialText {
-        text: root.text;
-        style: MaterialTypography.label-large;
-        color: !root.enabled ? root.text-disabled-color : (touch.has-hover ? root.text-hover-color : root.text-color);
-        horizontal-alignment: center;
-        vertical-alignment: center;
-    }
-
-    touch := TouchArea {
-        enabled: root.enabled;
-        clicked => {
-            root.clicked();
-        }
-        mouse-cursor: root.enabled ? pointer : default;
-    }
-}
-
 export component TopBar {
     // ========================================================================
     // CALLBACKS
     // ========================================================================
     callback file-add-folder();
     callback file-clear-queue();
-    callback view-toggle-sidebar();
     callback view-theme-dark();
     callback view-theme-light();
-    callback tools-settings();
-    callback start-processing();
-    callback stop-processing();
-
-    // ========================================================================
-    // PROPERTIES
-    // ========================================================================
-    in property <bool> is-processing: false;
-    in property <bool> has-folders: false;
+    callback show-help();
 
     // ========================================================================
     // MENU STATE
     // ========================================================================
     property <bool> file-menu-open: false;
     property <bool> view-menu-open: false;
-    property <bool> tools-menu-open: false;
-    property <bool> any-menu-open: root.file-menu-open || root.view-menu-open || root.tools-menu-open;
+    property <bool> any-menu-open: root.file-menu-open || root.view-menu-open;
 
     min-height: 40px;
 
@@ -131,8 +82,8 @@ export component TopBar {
         }
 
         HorizontalLayout {
-            padding-left: MaterialStyleMetrics.padding-12;
-            padding-right: MaterialStyleMetrics.padding-12;
+            padding-left: 12px;
+            padding-right: 12px;
             padding-top: 4px;
             padding-bottom: 4px;
 
@@ -153,19 +104,15 @@ export component TopBar {
                     text-active-color: MaterialPalette.on-primary;
                     clicked => {
                         root.view-menu-open = false;
-                        root.tools-menu-open = false;
                         root.file-menu-open = true;
                         view-menu.close();
-                        tools-menu.close();
                         file-menu.show();
                     }
                     hovered => {
                         if (root.any-menu-open) {
                             root.view-menu-open = false;
-                            root.tools-menu-open = false;
                             root.file-menu-open = true;
                             view-menu.close();
-                            tools-menu.close();
                             file-menu.show();
                         }
                     }
@@ -181,81 +128,51 @@ export component TopBar {
                     text-active-color: MaterialPalette.on-tertiary;
                     clicked => {
                         root.file-menu-open = false;
-                        root.tools-menu-open = false;
                         root.view-menu-open = true;
                         file-menu.close();
-                        tools-menu.close();
                         view-menu.show();
                     }
                     hovered => {
                         if (root.any-menu-open) {
                             root.file-menu-open = false;
-                            root.tools-menu-open = false;
                             root.view-menu-open = true;
                             file-menu.close();
-                            tools-menu.close();
                             view-menu.show();
-                        }
-                    }
-                }
-
-                tools-menu-button := MenuButton {
-                    text: "Tools";
-                    is-open: root.tools-menu-open;
-                    bg-color: MaterialPalette.secondary-container;
-                    bg-hover-color: MaterialPalette.secondary-container;
-                    bg-active-color: MaterialPalette.secondary;
-                    text-color: MaterialPalette.on-secondary-container;
-                    text-active-color: MaterialPalette.on-secondary;
-                    clicked => {
-                        root.file-menu-open = false;
-                        root.view-menu-open = false;
-                        root.tools-menu-open = true;
-                        file-menu.close();
-                        view-menu.close();
-                        tools-menu.show();
-                    }
-                    hovered => {
-                        if (root.any-menu-open) {
-                            root.file-menu-open = false;
-                            root.view-menu-open = false;
-                            root.tools-menu-open = true;
-                            file-menu.close();
-                            view-menu.close();
-                            tools-menu.show();
                         }
                     }
                 }
             }
 
             // ================================================================
-            // CENTER SPACER
+            // SPACER
             // ================================================================
             Rectangle {
                 horizontal-stretch: 1;
             }
 
             // ================================================================
-            // RIGHT SECTION - ACTIONS
+            // RIGHT SECTION - HELP
             // ================================================================
-            HorizontalLayout {
-                spacing: 8px;
-                alignment: end;
+            Rectangle {
+                width: 32px;
+                height: 32px;
+                border-radius: 16px;
+                background: help-touch.has-hover ? MaterialPalette.surface-container-high : transparent;
 
-                ActionButton {
-                    text: root.is-processing ? "Stop" : "Start";
-                    enabled: root.has-folders;
-                    bg-color: root.is-processing ? MaterialPalette.error-container : MaterialPalette.primary-container;
-                    bg-hover-color: root.is-processing ? MaterialPalette.error : MaterialPalette.primary;
-                    text-color: root.is-processing ? MaterialPalette.on-error-container : MaterialPalette.on-primary-container;
-                    text-hover-color: root.is-processing ? MaterialPalette.on-error : MaterialPalette.on-primary;
+                Icon {
+                    source: Icons.help;
+                    width: 20px;
+                    height: 20px;
+                    colorize: MaterialPalette.on-surface-variant;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                }
+
+                help-touch := TouchArea {
                     clicked => {
-                        if (root.is-processing) {
-                            root.stop-processing();
-                        } else {
-                            root.start-processing();
-                        }
+                        root.show-help();
                     }
+                    mouse-cursor: pointer;
                 }
             }
         }
@@ -292,7 +209,6 @@ export component TopBar {
         y: view-menu-button.absolute-position.y + view-menu-button.height;
 
         items: [
-            { text: "Toggle Sidebar", enabled: true },
             { text: "Dark Theme", enabled: true },
             { text: "Light Theme", enabled: true },
         ];
@@ -301,31 +217,9 @@ export component TopBar {
             self.close();
             root.view-menu-open = false;
             if (index == 0) {
-                root.view-toggle-sidebar();
-            } else if (index == 1) {
                 root.view-theme-dark();
-            } else if (index == 2) {
+            } else if (index == 1) {
                 root.view-theme-light();
-            }
-        }
-    }
-
-    // ========================================================================
-    // TOOLS MENU
-    // ========================================================================
-    tools-menu := PopupMenu {
-        x: tools-menu-button.absolute-position.x;
-        y: tools-menu-button.absolute-position.y + tools-menu-button.height;
-
-        items: [
-            { text: "Settings...", enabled: true },
-        ];
-
-        activated(index) => {
-            self.close();
-            root.tools-menu-open = false;
-            if (index == 0) {
-                root.tools-settings();
             }
         }
     }

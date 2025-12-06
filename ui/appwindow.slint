@@ -7,9 +7,6 @@ import { MaterialPalette } from "material/ui/styling/material_palette.slint";
 import {
     MaterialTypography,
 } from "material/ui/styling/material_typography.slint";
-import {
-    MaterialStyleMetrics,
-} from "material/ui/styling/material_style_metrics.slint";
 import { MaterialText } from "material/ui/components/material_text.slint";
 
 import { AppTheme } from "app_theme.slint";
@@ -74,11 +71,6 @@ export component AppWindow inherits Window {
     in-out property <string> status-text: "Ready";
 
     // ========================================================================
-    // UI STATE
-    // ========================================================================
-    in-out property <bool> sidebar-visible: true;
-
-    // ========================================================================
     // CALLBACKS
     // ========================================================================
     callback add-folder();
@@ -91,6 +83,11 @@ export component AppWindow inherits Window {
     callback settings-changed(int, string, string, string, int, int);
 
     // ========================================================================
+    // UI STATE
+    // ========================================================================
+    property <bool> help-visible: false;
+
+    // ========================================================================
     // MAIN LAYOUT
     // ========================================================================
     VerticalLayout {
@@ -98,17 +95,11 @@ export component AppWindow inherits Window {
         // TOP BAR
         // ====================================================================
         TopBar {
-            is-processing: root.is-processing;
-            has-folders: root.folders.length > 0;
-
             file-add-folder => {
                 root.add-folder();
             }
             file-clear-queue => {
                 root.clear-queue();
-            }
-            view-toggle-sidebar => {
-                root.sidebar-visible = !root.sidebar-visible;
             }
             view-theme-dark => {
                 root.theme-setting = "dark";
@@ -118,13 +109,8 @@ export component AppWindow inherits Window {
                 root.theme-setting = "light";
                 MaterialPalette.color-scheme = ColorScheme.light;
             }
-            tools-settings => {
-            }
-            start-processing => {
-                root.start-processing();
-            }
-            stop-processing => {
-                root.stop-processing();
+            show-help => {
+                root.help-visible = !root.help-visible;
             }
         }
 
@@ -135,18 +121,20 @@ export component AppWindow inherits Window {
             vertical-stretch: 1;
 
             // ================================================================
-            // LEFT SIDEBAR
+            // LEFT SIDEBAR (permanent)
             // ================================================================
-            if root.sidebar-visible: Rectangle {
+            Rectangle {
                 width: 280px;
                 background: MaterialPalette.surface-container-low;
 
                 VerticalLayout {
-                    // Folder Queue
+                    // Folder Queue with Start button
                     FolderQueue {
                         vertical-stretch: 1;
                         folders: root.folders;
                         selected-index: root.selected-folder-index;
+                        is-processing: root.is-processing;
+                        has-folders: root.folders.length > 0;
 
                         add-folder => {
                             root.add-folder();
@@ -163,6 +151,12 @@ export component AppWindow inherits Window {
                         select-folder(idx) => {
                             root.selected-folder-index = idx;
                         }
+                        start-processing => {
+                            root.start-processing();
+                        }
+                        stop-processing => {
+                            root.stop-processing();
+                        }
                     }
 
                     // Divider
@@ -171,8 +165,9 @@ export component AppWindow inherits Window {
                         background: MaterialPalette.outline-variant;
                     }
 
-                    // Settings Panel
+                    // Settings Panel (scrollable)
                     SettingsPanel {
+                        vertical-stretch: 1;
                         history-length <=> root.history-length;
                         background-color <=> root.background-color;
                         current-color <=> root.current-color;
@@ -234,6 +229,116 @@ export component AppWindow inherits Window {
             is-processing: root.is-processing;
             history-length: root.history-length;
             threads: root.threads;
+        }
+    }
+
+    // ========================================================================
+    // HELP OVERLAY
+    // ========================================================================
+    if root.help-visible: Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #000000aa;
+
+        help-dismiss := TouchArea {
+            clicked => {
+                root.help-visible = false;
+            }
+        }
+
+        Rectangle {
+            width: 400px;
+            height: 380px;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            border-radius: 12px;
+            background: MaterialPalette.surface-container;
+            VerticalLayout {
+                padding: 20px;
+                spacing: 12px;
+
+                MaterialText {
+                    text: "Settings Help";
+                    style: MaterialTypography.headline-small;
+                    color: MaterialPalette.on-surface;
+                }
+
+                Rectangle {
+                    height: 1px;
+                    background: MaterialPalette.outline-variant;
+                }
+
+                VerticalLayout {
+                    spacing: 8px;
+
+                    MaterialText {
+                        text: "• History Length — Number of previous frames to overlay.";
+                        style: MaterialTypography.body-small;
+                        color: MaterialPalette.on-surface;
+                        wrap: word-wrap;
+                    }
+
+                    MaterialText {
+                        text: "• Threads — Parallel worker threads (0 = auto).";
+                        style: MaterialTypography.body-small;
+                        color: MaterialPalette.on-surface;
+                        wrap: word-wrap;
+                    }
+
+                    MaterialText {
+                        text: "• Frame Limit — Maximum frames to process (0 = all).";
+                        style: MaterialTypography.body-small;
+                        color: MaterialPalette.on-surface;
+                        wrap: word-wrap;
+                    }
+
+                    MaterialText {
+                        text: "• Background — Background color for output images.";
+                        style: MaterialTypography.body-small;
+                        color: MaterialPalette.on-surface;
+                        wrap: word-wrap;
+                    }
+
+                    MaterialText {
+                        text: "• Current Frame — Color for the current frame outline.";
+                        style: MaterialTypography.body-small;
+                        color: MaterialPalette.on-surface;
+                        wrap: word-wrap;
+                    }
+
+                    MaterialText {
+                        text: "• History — Color for historical frame trails.";
+                        style: MaterialTypography.body-small;
+                        color: MaterialPalette.on-surface;
+                        wrap: word-wrap;
+                    }
+                }
+
+                Rectangle {
+                    vertical-stretch: 1;
+                }
+
+                Rectangle {
+                    height: 36px;
+                    border-radius: 8px;
+                    background: MaterialPalette.primary;
+
+                    close-touch := TouchArea {
+                        clicked => {
+                            root.help-visible = false;
+                        }
+                        mouse-cursor: pointer;
+                    }
+
+                    MaterialText {
+                        text: "Close";
+                        style: MaterialTypography.label-large;
+                        color: MaterialPalette.on-primary;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
         }
     }
 }

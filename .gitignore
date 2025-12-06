@@ -1,0 +1,25 @@
+# Build artifacts
+/target/
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# IDE/Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Rust specific
+**/*.rs.bk
+
+# Test/sample data (large CSV files)
+run_csvs/
+*.csv
+
+# Output images (generated)
+ppi_output/
