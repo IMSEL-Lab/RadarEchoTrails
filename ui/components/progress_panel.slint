@@ -1,0 +1,260 @@
+// ============================================================================
+// PROGRESS PANEL COMPONENT
+// ============================================================================
+// Displays processing progress with overall and current folder stats
+
+import { MaterialPalette } from "../material/ui/styling/material_palette.slint";
+import {
+    MaterialTypography,
+} from "../material/ui/styling/material_typography.slint";
+import {
+    MaterialStyleMetrics,
+} from "../material/ui/styling/material_style_metrics.slint";
+import { MaterialText } from "../material/ui/components/material_text.slint";
+import { Icon } from "../material/ui/components/icon.slint";
+import { Icons } from "../material/ui/icons/icons.slint";
+import { AppTheme } from "../app_theme.slint";
+
+// ============================================================================
+// PROGRESS BAR COMPONENT
+// ============================================================================
+component ProgressBar inherits Rectangle {
+    in property <float> progress: 0.0;
+    in property <string> label: "";
+    in property <bool> show-percentage: true;
+    in property <color> bar-color: AppTheme.progress-fill;
+
+    height: 32px;
+
+    VerticalLayout {
+        spacing: 4px;
+
+        if root.label != "": HorizontalLayout {
+            MaterialText {
+                text: root.label;
+                style: MaterialTypography.label-small;
+                color: MaterialPalette.on-surface-variant;
+                horizontal-stretch: 1;
+            }
+
+            if root.show-percentage: MaterialText {
+                text: Math.round(root.progress * 100) + "%";
+                style: MaterialTypography.label-small;
+                color: root.bar-color;
+            }
+        }
+
+        Rectangle {
+            height: 8px;
+            border-radius: 4px;
+            background: AppTheme.progress-background;
+
+            Rectangle {
+                width: parent.width * Math.max(0.0, Math.min(1.0, root.progress));
+                height: 100%;
+                border-radius: 4px;
+                background: root.bar-color;
+
+                animate width {
+                    duration: 200ms;
+                    easing: ease-out;
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// STAT CARD COMPONENT
+// ============================================================================
+component StatCard inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    in property <color> accent-color: AppTheme.primary-main;
+
+    height: 60px;
+    border-radius: 8px;
+    background: MaterialPalette.surface-container;
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 4px;
+        alignment: center;
+
+        MaterialText {
+            text: root.value;
+            style: MaterialTypography.title-large;
+            color: root.accent-color;
+            horizontal-alignment: center;
+        }
+
+        MaterialText {
+            text: root.label;
+            style: MaterialTypography.label-small;
+            color: MaterialPalette.on-surface-variant;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+// ============================================================================
+// PROGRESS PANEL
+// ============================================================================
+export component ProgressPanel {
+    // Overall progress
+    in property <float> overall-progress: 0.0;
+    in property <int> folders-completed: 0;
+    in property <int> folders-total: 0;
+
+    // Current folder progress
+    in property <float> folder-progress: 0.0;
+    in property <int> files-completed: 0;
+    in property <int> files-total: 0;
+    in property <string> current-file: "";
+    in property <string> current-folder: "";
+
+    // Stats
+    in property <string> eta-text: "--:--";
+    in property <float> files-per-second: 0.0;
+
+    // State
+    in property <bool> is-processing: false;
+    in property <bool> is-complete: false;
+
+    VerticalLayout {
+        spacing: 16px;
+        padding: 16px;
+
+        // Header
+        MaterialText {
+            text: root.is-complete ? "Processing Complete!" : root.is-processing ? "Processing..." : "Ready to Process";
+            style: MaterialTypography.title-medium;
+            color: root.is-complete ? AppTheme.success : root.is-processing ? AppTheme.primary-main : MaterialPalette.on-surface;
+        }
+
+        // Stats row
+        HorizontalLayout {
+            spacing: 12px;
+
+            StatCard {
+                horizontal-stretch: 1;
+                label: "Folders";
+                value: root.folders-completed + "/" + root.folders-total;
+                accent-color: AppTheme.primary-main;
+            }
+
+            StatCard {
+                horizontal-stretch: 1;
+                label: "Files";
+                value: root.files-completed + "/" + root.files-total;
+                accent-color: AppTheme.accent-main;
+            }
+
+            StatCard {
+                horizontal-stretch: 1;
+                label: "ETA";
+                value: root.eta-text;
+                accent-color: AppTheme.secondary-main;
+            }
+
+            StatCard {
+                horizontal-stretch: 1;
+                label: "Speed";
+                value: Math.round(root.files-per-second * 10) / 10 + "/s";
+                accent-color: AppTheme.success;
+            }
+        }
+
+        // Overall progress
+        ProgressBar {
+            progress: root.overall-progress;
+            label: "Overall Progress";
+            bar-color: root.is-complete ? AppTheme.success : AppTheme.primary-main;
+        }
+
+        // Current folder progress
+        if root.is-processing && root.current-folder != "": VerticalLayout {
+            spacing: 8px;
+
+            MaterialText {
+                text: "Current: " + root.current-folder;
+                style: MaterialTypography.body-small;
+                color: MaterialPalette.on-surface-variant;
+                overflow: elide;
+            }
+
+            ProgressBar {
+                progress: root.folder-progress;
+                label: "";
+                show-percentage: true;
+                bar-color: AppTheme.accent-main;
+            }
+
+            if root.current-file != "": MaterialText {
+                text: root.current-file;
+                style: MaterialTypography.label-small;
+                color: MaterialPalette.outline;
+                overflow: elide;
+            }
+        }
+
+        // Empty state
+        if !root.is-processing && !root.is-complete && root.folders-total == 0: Rectangle {
+            vertical-stretch: 1;
+
+            VerticalLayout {
+                alignment: center;
+                spacing: 12px;
+
+                Icon {
+                    source: Icons.image;
+                    colorize: MaterialPalette.outline;
+                    width: 64px;
+                    height: 64px;
+                }
+
+                MaterialText {
+                    text: "Add folders to begin";
+                    style: MaterialTypography.body-medium;
+                    color: MaterialPalette.outline;
+                    horizontal-alignment: center;
+                }
+
+                MaterialText {
+                    text: "CSV files will be converted to PPI images";
+                    style: MaterialTypography.label-small;
+                    color: MaterialPalette.outline;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+
+        // Preview placeholder
+        if root.is-processing || root.is-complete: Rectangle {
+            vertical-stretch: 1;
+            border-radius: 8px;
+            background: MaterialPalette.surface-container-low;
+            border-width: 1px;
+            border-color: MaterialPalette.outline-variant;
+
+            VerticalLayout {
+                alignment: center;
+                spacing: 8px;
+
+                Icon {
+                    source: Icons.image;
+                    colorize: MaterialPalette.outline;
+                    width: 48px;
+                    height: 48px;
+                }
+
+                MaterialText {
+                    text: "Last rendered image will appear here";
+                    style: MaterialTypography.label-small;
+                    color: MaterialPalette.outline;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,320 @@
+// ============================================================================
+// SETTINGS PANEL COMPONENT - FRAME TRAILS
+// ============================================================================
+// Settings for frame trails processing
+
+import { MaterialPalette } from "../material/ui/styling/material_palette.slint";
+import {
+    MaterialTypography,
+} from "../material/ui/styling/material_typography.slint";
+import {
+    MaterialStyleMetrics,
+} from "../material/ui/styling/material_style_metrics.slint";
+import { MaterialText } from "../material/ui/components/material_text.slint";
+import { Icon } from "../material/ui/components/icon.slint";
+import { Icons } from "../material/ui/icons/icons.slint";
+import { AppTheme } from "../app_theme.slint";
+
+// ============================================================================
+// SETTING ROW COMPONENT
+// ============================================================================
+component SettingRow inherits Rectangle {
+    in property <string> label;
+    in property <string> value;
+    in property <string> unit: "";
+    callback increment();
+    callback decrement();
+
+    height: 40px;
+    background: touch.has-hover ? MaterialPalette.surface-container-high : transparent;
+    border-radius: 4px;
+
+    touch := TouchArea { }
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 8px;
+        spacing: 8px;
+
+        MaterialText {
+            text: root.label;
+            style: MaterialTypography.body-medium;
+            color: MaterialPalette.on-surface;
+            horizontal-stretch: 1;
+            vertical-alignment: center;
+        }
+
+        // Decrement
+        Rectangle {
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            background: dec-touch.has-hover ? MaterialPalette.surface-container-highest : MaterialPalette.surface-container;
+
+            MaterialText {
+                text: "−";
+                style: MaterialTypography.title-medium;
+                color: MaterialPalette.on-surface;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            dec-touch := TouchArea {
+                clicked => {
+                    root.decrement();
+                }
+                mouse-cursor: pointer;
+            }
+        }
+
+        // Value display
+        Rectangle {
+            width: 80px;
+            height: 28px;
+            border-radius: 4px;
+            background: MaterialPalette.surface-container-low;
+            border-width: 1px;
+            border-color: MaterialPalette.outline-variant;
+
+            MaterialText {
+                text: root.value + root.unit;
+                style: MaterialTypography.body-medium;
+                color: MaterialPalette.on-surface;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        // Increment
+        Rectangle {
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            background: inc-touch.has-hover ? MaterialPalette.surface-container-highest : MaterialPalette.surface-container;
+
+            MaterialText {
+                text: "+";
+                style: MaterialTypography.title-medium;
+                color: MaterialPalette.on-surface;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            inc-touch := TouchArea {
+                clicked => {
+                    root.increment();
+                }
+                mouse-cursor: pointer;
+            }
+        }
+    }
+}
+
+// ============================================================================
+// COLOR SWATCH COMPONENT
+// ============================================================================
+component ColorSwatch inherits Rectangle {
+    in property <string> label;
+    in property <string> hex-value;
+    callback clicked();
+
+    height: 40px;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 8px;
+        spacing: 8px;
+
+        MaterialText {
+            text: root.label;
+            style: MaterialTypography.body-medium;
+            color: MaterialPalette.on-surface;
+            horizontal-stretch: 1;
+            vertical-alignment: center;
+        }
+
+        // Color preview and hex value
+        Rectangle {
+            width: 100px;
+            height: 28px;
+            border-radius: 4px;
+            background: swatch-touch.has-hover ? MaterialPalette.surface-container-high : MaterialPalette.surface-container;
+            border-width: 1px;
+            border-color: MaterialPalette.outline-variant;
+
+            HorizontalLayout {
+                padding: 4px;
+                spacing: 8px;
+
+                // Color swatch
+                Rectangle {
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 4px;
+                    // Note: Dynamic color from hex is not directly supported in Slint
+                    // We'll show a placeholder - actual color preview would need Rust-side support
+                    background: MaterialPalette.tertiary;
+                }
+
+                MaterialText {
+                    text: root.hex-value;
+                    style: MaterialTypography.label-small;
+                    color: MaterialPalette.on-surface;
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                }
+            }
+
+            swatch-touch := TouchArea {
+                clicked => {
+                    root.clicked();
+                }
+                mouse-cursor: pointer;
+            }
+        }
+    }
+}
+
+// ============================================================================
+// SETTINGS PANEL
+// ============================================================================
+export component SettingsPanel {
+    // Settings values
+    in-out property <int> history-length: 5;
+    in-out property <string> background-color: "#000000";
+    in-out property <string> current-color: "#00ff00";
+    in-out property <string> history-color: "#ff7f00";
+    in-out property <int> threads: 0;
+    in-out property <int> limit: 0;  // 0 means no limit
+
+    callback settings-changed();
+
+    VerticalLayout {
+        spacing: 4px;
+
+        // Header
+        HorizontalLayout {
+            padding-left: 12px;
+            padding-right: 12px;
+            padding-top: 8px;
+            padding-bottom: 8px;
+
+            MaterialText {
+                text: "Settings";
+                style: MaterialTypography.title-medium;
+                color: MaterialPalette.on-surface;
+            }
+        }
+
+        // Divider
+        Rectangle {
+            height: 1px;
+            background: MaterialPalette.outline-variant;
+        }
+
+        // Settings list
+        VerticalLayout {
+            padding: 8px;
+            spacing: 4px;
+
+            SettingRow {
+                label: "History Length";
+                value: root.history-length;
+                increment => {
+                    root.history-length = Math.min(root.history-length + 1, 20);
+                    root.settings-changed();
+                }
+                decrement => {
+                    root.history-length = Math.max(root.history-length - 1, 1);
+                    root.settings-changed();
+                }
+            }
+
+            SettingRow {
+                label: "Threads";
+                value: root.threads == 0 ? "auto" : root.threads;
+                increment => {
+                    root.threads = Math.min(root.threads + 1, 32);
+                    root.settings-changed();
+                }
+                decrement => {
+                    root.threads = Math.max(root.threads - 1, 0);
+                    root.settings-changed();
+                }
+            }
+
+            SettingRow {
+                label: "Frame Limit";
+                value: root.limit == 0 ? "none" : root.limit;
+                increment => {
+                    root.limit = root.limit + 100;
+                    root.settings-changed();
+                }
+                decrement => {
+                    root.limit = Math.max(root.limit - 100, 0);
+                    root.settings-changed();
+                }
+            }
+
+            // Colors section header
+            Rectangle {
+                height: 8px;
+            }
+
+            MaterialText {
+                text: "Colors";
+                style: MaterialTypography.label-medium;
+                color: MaterialPalette.on-surface-variant;
+                x: 12px;
+            }
+
+            ColorSwatch {
+                label: "Background";
+                hex-value: root.background-color;
+                clicked => {
+                    // Cycle through common background colors
+                    if (root.background-color == "#000000") {
+                        root.background-color = "#1a1a1a";
+                    } else if (root.background-color == "#1a1a1a") {
+                        root.background-color = "#333333";
+                    } else {
+                        root.background-color = "#000000";
+                    }
+                    root.settings-changed();
+                }
+            }
+
+            ColorSwatch {
+                label: "Current Frame";
+                hex-value: root.current-color;
+                clicked => {
+                    // Cycle through common current frame colors
+                    if (root.current-color == "#00ff00") {
+                        root.current-color = "#ffffff";
+                    } else if (root.current-color == "#ffffff") {
+                        root.current-color = "#00ffff";
+                    } else {
+                        root.current-color = "#00ff00";
+                    }
+                    root.settings-changed();
+                }
+            }
+
+            ColorSwatch {
+                label: "History";
+                hex-value: root.history-color;
+                clicked => {
+                    // Cycle through common history colors
+                    if (root.history-color == "#ff7f00") {
+                        root.history-color = "#ff0000";
+                    } else if (root.history-color == "#ff0000") {
+                        root.history-color = "#ffff00";
+                    } else {
+                        root.history-color = "#ff7f00";
+                    }
+                    root.settings-changed();
+                }
+            }
+        }
+    }
+}
