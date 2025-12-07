@@ -1,7 +1,6 @@
 // ============================================================================
 // FRAME TRAILS GUI - MAIN WINDOW
 // ============================================================================
-// Main application window for batch frame trails generation
 
 import { MaterialPalette } from "material/ui/styling/material_palette.slint";
 import {
@@ -25,12 +24,10 @@ component RgbSlider inherits Rectangle {
     in property <string> label;
     in-out property <int> value: 0;
     in property <color> track-color: MaterialPalette.primary;
-
     height: 28px;
 
     HorizontalLayout {
         spacing: 8px;
-
         MaterialText {
             text: root.label;
             style: MaterialTypography.label-medium;
@@ -42,7 +39,6 @@ component RgbSlider inherits Rectangle {
         Rectangle {
             horizontal-stretch: 1;
             height: 24px;
-
             Rectangle {
                 y: (parent.height - self.height) / 2;
                 height: 6px;
@@ -88,7 +84,6 @@ component RgbSlider inherits Rectangle {
             height: 20px;
             border-radius: 4px;
             background: MaterialPalette.surface-container;
-
             MaterialText {
                 text: root.value;
                 style: MaterialTypography.label-small;
@@ -100,20 +95,15 @@ component RgbSlider inherits Rectangle {
     }
 }
 
-// ============================================================================
-// PRESET COLOR BUTTON
-// ============================================================================
 component PresetColor inherits Rectangle {
     in property <color> preset-color;
     callback clicked();
-
     width: 24px;
     height: 24px;
     border-radius: 4px;
     background: root.preset-color;
     border-width: touch.has-hover ? 2px : 0px;
     border-color: MaterialPalette.on-surface;
-
     touch := TouchArea {
         clicked => {
             root.clicked();
@@ -131,11 +121,7 @@ export component AppWindow inherits Window {
     min-height: 600px;
     background: MaterialPalette.background;
 
-    // ========================================================================
-    // THEME MANAGEMENT
-    // ========================================================================
     in-out property <string> theme-setting: "dark";
-
     init => {
         if (root.theme-setting == "dark") {
             MaterialPalette.color-scheme = ColorScheme.dark;
@@ -144,20 +130,11 @@ export component AppWindow inherits Window {
         }
     }
 
-    // ========================================================================
-    // FOLDER QUEUE STATE
-    // ========================================================================
     in-out property <[FolderItem]> folders: [];
     in-out property <int> selected-folder-index: -1;
-
-    // ========================================================================
-    // SETTINGS STATE
-    // ========================================================================
     in-out property <int> history-length: 5;
     in-out property <int> threads: 0;
     in-out property <int> limit: 0;
-
-    // Color RGB components (0-255) for Rust binding
     in-out property <int> bg-r: 0;
     in-out property <int> bg-g: 0;
     in-out property <int> bg-b: 0;
@@ -167,10 +144,6 @@ export component AppWindow inherits Window {
     in-out property <int> hist-r: 255;
     in-out property <int> hist-g: 127;
     in-out property <int> hist-b: 0;
-
-    // ========================================================================
-    // PROCESSING STATE
-    // ========================================================================
     in-out property <bool> is-processing: false;
     in-out property <bool> is-complete: false;
     in-out property <float> overall-progress: 0.0;
@@ -184,9 +157,6 @@ export component AppWindow inherits Window {
     in-out property <float> files-per-second: 0.0;
     in-out property <string> status-text: "Ready";
 
-    // ========================================================================
-    // CALLBACKS
-    // ========================================================================
     callback add-folder();
     callback remove-folder(int);
     callback move-folder-up(int);
@@ -197,9 +167,6 @@ export component AppWindow inherits Window {
     callback settings-changed(int, int, int, int, int, int, int, int, int, int, int, int);
     callback parse-hex(string);
 
-    // ========================================================================
-    // UI STATE
-    // ========================================================================
     property <bool> help-visible: false;
     property <int> picker-active: 0;
     in-out property <int> picker-r: 0;
@@ -210,29 +177,50 @@ export component AppWindow inherits Window {
         #000000,
         #1a1a1a,
         #333333,
+        #4d4d4d,
         #666666,
+        #808080,
         #999999,
+        #b3b3b3,
         #cccccc,
         #ffffff,
         #ff0000,
-        #ff7f00,
-        #ffff00,
         #00ff00,
-        #00ffff,
         #0000ff,
+        #ffff00,
         #ff00ff,
+        #00ffff,
+        #ff7f00,
+        #7fff00,
+        #00ff7f,
+        #007fff,
+        #7f00ff,
+        #ff007f,
         #800000,
-        #804000,
-        #808000,
         #008000,
-        #008080,
         #000080,
-        #800080
+        #808000,
+        #008080,
+        #800080,
+        #804000,
+        #408000,
+        #ffb3b3,
+        #b3ffb3,
+        #b3b3ff,
+        #ffffb3,
+        #ffb3ff,
+        #b3ffff,
+        #ffd9b3,
+        #d9ffb3,
+        #2196f3,
+        #4caf50,
+        #ff9800,
+        #e91e63,
+        #9c27b0,
+        #607d8b,
+        #795548
     ];
 
-    // ========================================================================
-    // MAIN LAYOUT
-    // ========================================================================
     VerticalLayout {
         TopBar {
             file-add-folder => {
@@ -256,11 +244,9 @@ export component AppWindow inherits Window {
 
         HorizontalLayout {
             vertical-stretch: 1;
-
             Rectangle {
                 width: 280px;
                 background: MaterialPalette.surface-container-low;
-
                 VerticalLayout {
                     FolderQueue {
                         vertical-stretch: 1;
@@ -304,15 +290,9 @@ export component AppWindow inherits Window {
                         background-brush: Colors.rgb(root.bg-r, root.bg-g, root.bg-b);
                         current-brush: Colors.rgb(root.cur-r, root.cur-g, root.cur-b);
                         history-brush: Colors.rgb(root.hist-r, root.hist-g, root.hist-b);
-
                         settings-changed => {
-                            root.settings-changed(
-                                root.history-length, root.threads, root.limit,
-                                root.bg-r, root.bg-g, root.bg-b,
-                                root.cur-r, root.cur-g, root.cur-b,
-                                root.hist-r, root.hist-g, root.hist-b);
+                            root.settings-changed(root.history-length, root.threads, root.limit, root.bg-r, root.bg-g, root.bg-b, root.cur-r, root.cur-g, root.cur-b, root.hist-r, root.hist-g, root.hist-b);
                         }
-
                         edit-background-color => {
                             root.picker-r = root.bg-r;
                             root.picker-g = root.bg-g;
@@ -345,7 +325,6 @@ export component AppWindow inherits Window {
             Rectangle {
                 horizontal-stretch: 1;
                 background: MaterialPalette.surface-container-lowest;
-
                 ProgressPanel {
                     overall-progress: root.overall-progress;
                     folders-completed: root.folders-completed;
@@ -372,14 +351,11 @@ export component AppWindow inherits Window {
         }
     }
 
-    // ========================================================================
     // COLOR PICKER MODAL
-    // ========================================================================
     if root.picker-active > 0: Rectangle {
         width: 100%;
         height: 100%;
         background: #000000aa;
-
         TouchArea {
             clicked => {
                 root.picker-active = 0;
@@ -389,18 +365,16 @@ export component AppWindow inherits Window {
         Rectangle {
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
-            width: 360px;
-            height: 420px;
+            width: 442px;
+            height: 380px;
             border-radius: 16px;
             background: MaterialPalette.surface-container;
             clip: true;
-
             TouchArea { }
 
             VerticalLayout {
                 padding: 20px;
                 spacing: 12px;
-
                 MaterialText {
                     text: root.picker-active == 1 ? "Background Color" : root.picker-active == 2 ? "Current Frame Color" : "History Color";
                     style: MaterialTypography.title-large;
@@ -410,7 +384,6 @@ export component AppWindow inherits Window {
 
                 HorizontalLayout {
                     spacing: 16px;
-
                     Rectangle {
                         width: 80px;
                         height: 80px;
@@ -423,7 +396,6 @@ export component AppWindow inherits Window {
                     VerticalLayout {
                         horizontal-stretch: 1;
                         spacing: 8px;
-
                         RgbSlider {
                             label: "R";
                             value <=> root.picker-r;
@@ -444,10 +416,8 @@ export component AppWindow inherits Window {
                     }
                 }
 
-                // Hex input row
                 HorizontalLayout {
                     spacing: 8px;
-
                     MaterialText {
                         text: "Hex:";
                         style: MaterialTypography.label-medium;
@@ -463,7 +433,6 @@ export component AppWindow inherits Window {
                         background: MaterialPalette.surface-container-low;
                         border-width: 1px;
                         border-color: hex-input.has-focus ? MaterialPalette.primary : MaterialPalette.outline-variant;
-
                         hex-input := TextInput {
                             x: 10px;
                             width: parent.width - 20px;
@@ -472,7 +441,6 @@ export component AppWindow inherits Window {
                             font-size: 14px;
                             color: MaterialPalette.on-surface;
                             vertical-alignment: center;
-
                             accepted => {
                                 root.parse-hex(self.text);
                             }
@@ -486,7 +454,6 @@ export component AppWindow inherits Window {
                         background: hex-btn.has-hover ? MaterialPalette.primary : MaterialPalette.primary-container;
                         border-width: 1px;
                         border-color: MaterialPalette.primary;
-
                         hex-btn := TouchArea {
                             clicked => {
                                 root.parse-hex(hex-input.text);
@@ -511,11 +478,10 @@ export component AppWindow inherits Window {
                 }
 
                 VerticalLayout {
-                    spacing: 6px;
-
+                    spacing: 3px;
                     HorizontalLayout {
-                        spacing: 6px;
-                        for i in 7: PresetColor {
+                        spacing: 3px;
+                        for i in 15: PresetColor {
                             preset-color: root.preset-colors[i];
                             clicked => {
                                 if (i == 0) {
@@ -524,14 +490,14 @@ export component AppWindow inherits Window {
                                     root.picker-b = 0;
                                 }
                                 if (i == 1) {
-                                    root.picker-r = 26;
-                                    root.picker-g = 26;
-                                    root.picker-b = 26;
+                                    root.picker-r = 34;
+                                    root.picker-g = 34;
+                                    root.picker-b = 34;
                                 }
                                 if (i == 2) {
-                                    root.picker-r = 51;
-                                    root.picker-g = 51;
-                                    root.picker-b = 51;
+                                    root.picker-r = 68;
+                                    root.picker-g = 68;
+                                    root.picker-b = 68;
                                 }
                                 if (i == 3) {
                                     root.picker-r = 102;
@@ -539,18 +505,58 @@ export component AppWindow inherits Window {
                                     root.picker-b = 102;
                                 }
                                 if (i == 4) {
-                                    root.picker-r = 153;
-                                    root.picker-g = 153;
-                                    root.picker-b = 153;
+                                    root.picker-r = 136;
+                                    root.picker-g = 136;
+                                    root.picker-b = 136;
                                 }
                                 if (i == 5) {
+                                    root.picker-r = 170;
+                                    root.picker-g = 170;
+                                    root.picker-b = 170;
+                                }
+                                if (i == 6) {
                                     root.picker-r = 204;
                                     root.picker-g = 204;
                                     root.picker-b = 204;
                                 }
-                                if (i == 6) {
+                                if (i == 7) {
                                     root.picker-r = 255;
                                     root.picker-g = 255;
+                                    root.picker-b = 255;
+                                }
+                                if (i == 8) {
+                                    root.picker-r = 255;
+                                    root.picker-g = 0;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 9) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 255;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 10) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 0;
+                                    root.picker-b = 255;
+                                }
+                                if (i == 11) {
+                                    root.picker-r = 255;
+                                    root.picker-g = 255;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 12) {
+                                    root.picker-r = 255;
+                                    root.picker-g = 0;
+                                    root.picker-b = 255;
+                                }
+                                if (i == 13) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 255;
+                                    root.picker-b = 255;
+                                }
+                                if (i == 14) {
+                                    root.picker-r = 255;
+                                    root.picker-g = 0;
                                     root.picker-b = 255;
                                 }
                             }
@@ -558,88 +564,168 @@ export component AppWindow inherits Window {
                     }
 
                     HorizontalLayout {
-                        spacing: 6px;
-                        for i in 7: PresetColor {
-                            preset-color: root.preset-colors[7 + i];
+                        spacing: 3px;
+                        for i in 15: PresetColor {
+                            preset-color: root.preset-colors[15 + i];
                             clicked => {
                                 if (i == 0) {
-                                    root.picker-r = 255;
-                                    root.picker-g = 0;
-                                    root.picker-b = 0;
-                                }
-                                if (i == 1) {
                                     root.picker-r = 255;
                                     root.picker-g = 127;
                                     root.picker-b = 0;
                                 }
-                                if (i == 2) {
-                                    root.picker-r = 255;
+                                if (i == 1) {
+                                    root.picker-r = 127;
                                     root.picker-g = 255;
                                     root.picker-b = 0;
+                                }
+                                if (i == 2) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 255;
+                                    root.picker-b = 127;
                                 }
                                 if (i == 3) {
                                     root.picker-r = 0;
-                                    root.picker-g = 255;
-                                    root.picker-b = 0;
+                                    root.picker-g = 127;
+                                    root.picker-b = 255;
                                 }
                                 if (i == 4) {
-                                    root.picker-r = 0;
-                                    root.picker-g = 255;
+                                    root.picker-r = 127;
+                                    root.picker-g = 0;
                                     root.picker-b = 255;
                                 }
                                 if (i == 5) {
-                                    root.picker-r = 0;
-                                    root.picker-g = 0;
-                                    root.picker-b = 255;
-                                }
-                                if (i == 6) {
                                     root.picker-r = 255;
                                     root.picker-g = 0;
-                                    root.picker-b = 255;
+                                    root.picker-b = 127;
+                                }
+                                if (i == 6) {
+                                    root.picker-r = 128;
+                                    root.picker-g = 0;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 7) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 128;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 8) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 0;
+                                    root.picker-b = 128;
+                                }
+                                if (i == 9) {
+                                    root.picker-r = 128;
+                                    root.picker-g = 128;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 10) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 128;
+                                    root.picker-b = 128;
+                                }
+                                if (i == 11) {
+                                    root.picker-r = 128;
+                                    root.picker-g = 0;
+                                    root.picker-b = 128;
+                                }
+                                if (i == 12) {
+                                    root.picker-r = 128;
+                                    root.picker-g = 64;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 13) {
+                                    root.picker-r = 64;
+                                    root.picker-g = 128;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 14) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 64;
+                                    root.picker-b = 128;
                                 }
                             }
                         }
                     }
 
                     HorizontalLayout {
-                        spacing: 6px;
-                        for i in 7: PresetColor {
-                            preset-color: root.preset-colors[14 + i];
+                        spacing: 3px;
+                        for i in 15: PresetColor {
+                            preset-color: root.preset-colors[30 + i];
                             clicked => {
                                 if (i == 0) {
-                                    root.picker-r = 128;
-                                    root.picker-g = 0;
-                                    root.picker-b = 0;
+                                    root.picker-r = 255;
+                                    root.picker-g = 179;
+                                    root.picker-b = 179;
                                 }
                                 if (i == 1) {
-                                    root.picker-r = 128;
-                                    root.picker-g = 64;
-                                    root.picker-b = 0;
+                                    root.picker-r = 179;
+                                    root.picker-g = 255;
+                                    root.picker-b = 179;
                                 }
                                 if (i == 2) {
-                                    root.picker-r = 128;
-                                    root.picker-g = 128;
-                                    root.picker-b = 0;
+                                    root.picker-r = 179;
+                                    root.picker-g = 179;
+                                    root.picker-b = 255;
                                 }
                                 if (i == 3) {
-                                    root.picker-r = 0;
-                                    root.picker-g = 128;
-                                    root.picker-b = 0;
+                                    root.picker-r = 255;
+                                    root.picker-g = 255;
+                                    root.picker-b = 179;
                                 }
                                 if (i == 4) {
-                                    root.picker-r = 0;
-                                    root.picker-g = 128;
-                                    root.picker-b = 128;
+                                    root.picker-r = 255;
+                                    root.picker-g = 179;
+                                    root.picker-b = 255;
                                 }
                                 if (i == 5) {
-                                    root.picker-r = 0;
-                                    root.picker-g = 0;
-                                    root.picker-b = 128;
+                                    root.picker-r = 179;
+                                    root.picker-g = 255;
+                                    root.picker-b = 255;
                                 }
                                 if (i == 6) {
-                                    root.picker-r = 128;
-                                    root.picker-g = 0;
-                                    root.picker-b = 128;
+                                    root.picker-r = 255;
+                                    root.picker-g = 217;
+                                    root.picker-b = 179;
+                                }
+                                if (i == 7) {
+                                    root.picker-r = 217;
+                                    root.picker-g = 255;
+                                    root.picker-b = 179;
+                                }
+                                if (i == 8) {
+                                    root.picker-r = 33;
+                                    root.picker-g = 150;
+                                    root.picker-b = 243;
+                                }
+                                if (i == 9) {
+                                    root.picker-r = 76;
+                                    root.picker-g = 175;
+                                    root.picker-b = 80;
+                                }
+                                if (i == 10) {
+                                    root.picker-r = 255;
+                                    root.picker-g = 152;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 11) {
+                                    root.picker-r = 233;
+                                    root.picker-g = 30;
+                                    root.picker-b = 99;
+                                }
+                                if (i == 12) {
+                                    root.picker-r = 156;
+                                    root.picker-g = 39;
+                                    root.picker-b = 176;
+                                }
+                                if (i == 13) {
+                                    root.picker-r = 96;
+                                    root.picker-g = 125;
+                                    root.picker-b = 139;
+                                }
+                                if (i == 14) {
+                                    root.picker-r = 121;
+                                    root.picker-g = 85;
+                                    root.picker-b = 72;
                                 }
                             }
                         }
@@ -648,13 +734,11 @@ export component AppWindow inherits Window {
 
                 HorizontalLayout {
                     spacing: 12px;
-
                     Rectangle {
                         horizontal-stretch: 1;
                         height: 44px;
                         border-radius: 8px;
                         background: cancel-touch.has-hover ? MaterialPalette.surface-container-highest : MaterialPalette.surface-container-high;
-
                         cancel-touch := TouchArea {
                             clicked => {
                                 root.picker-active = 0;
@@ -676,7 +760,6 @@ export component AppWindow inherits Window {
                         height: 44px;
                         border-radius: 8px;
                         background: apply-touch.has-hover ? MaterialPalette.primary : MaterialPalette.primary-container;
-
                         apply-touch := TouchArea {
                             clicked => {
                                 if (root.picker-active == 1) {
@@ -693,11 +776,7 @@ export component AppWindow inherits Window {
                                     root.hist-b = root.picker-b;
                                 }
                                 root.picker-active = 0;
-                                root.settings-changed(
-                                    root.history-length, root.threads, root.limit,
-                                    root.bg-r, root.bg-g, root.bg-b,
-                                    root.cur-r, root.cur-g, root.cur-b,
-                                    root.hist-r, root.hist-g, root.hist-b);
+                                root.settings-changed(root.history-length, root.threads, root.limit, root.bg-r, root.bg-g, root.bg-b, root.cur-r, root.cur-g, root.cur-b, root.hist-r, root.hist-g, root.hist-b);
                             }
                             mouse-cursor: pointer;
                         }
@@ -715,14 +794,11 @@ export component AppWindow inherits Window {
         }
     }
 
-    // ========================================================================
     // HELP OVERLAY
-    // ========================================================================
     if root.help-visible: Rectangle {
         width: 100%;
         height: 100%;
         background: #000000aa;
-
         TouchArea {
             clicked => {
                 root.help-visible = false;
@@ -731,16 +807,14 @@ export component AppWindow inherits Window {
 
         Rectangle {
             width: 400px;
-            height: 380px;
+            height: 340px;
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
             border-radius: 12px;
             background: MaterialPalette.surface-container;
-
             VerticalLayout {
                 padding: 20px;
                 spacing: 12px;
-
                 MaterialText {
                     text: "Settings Help";
                     style: MaterialTypography.headline-small;
@@ -754,7 +828,6 @@ export component AppWindow inherits Window {
 
                 VerticalLayout {
                     spacing: 8px;
-
                     MaterialText {
                         text: "History Length - Number of previous frames to overlay.";
                         style: MaterialTypography.body-small;
@@ -806,7 +879,6 @@ export component AppWindow inherits Window {
                     height: 36px;
                     border-radius: 8px;
                     background: MaterialPalette.primary;
-
                     TouchArea {
                         clicked => {
                             root.help-visible = false;
