@@ -1,4 +1,4 @@
-# FrameTrails
+# RadarEchoTrails
 
 > **A high-performance GUI application for batch generating motion trail effects from image sequences.**
 
@@ -61,16 +61,16 @@ Built with [Slint](https://slint.dev/) for a modern, responsive interface and po
 
 ### macOS Installation
 
-Download and mount the DMG file, then drag **FrameTrails.app** to your Applications folder.
+Download and mount the DMG file, then drag **RadarEchoTrails.app** to your Applications folder.
 
-Alternatively, double-click `FrameTrails.app` directly from the project directory to run.
+Alternatively, double-click `RadarEchoTrails.app` directly from the project directory to run.
 
 ### Build from Source
 
 **Prerequisites**: Rust 1.70+
 
 ```bash
-cd frame-trails
+cd RadarEchoTrails
 
 # Build release version (much faster for batch processing)
 cargo build --release
@@ -124,7 +124,7 @@ Output is automatically saved to a sibling folder with `_trail_N` suffix, where 
 
 ### Algorithm Overview
 
-FrameTrails generates motion trail effects by compositing each frame with a configurable number of preceding frames. The algorithm:
+RadarEchoTrails generates motion trail effects by compositing each frame with a configurable number of preceding frames. The algorithm:
 
 1. **Loads** each frame in sequence
 2. **Creates** a background canvas with the specified background color
@@ -156,7 +156,7 @@ This creates a false-color effect where bright regions show the tint color and d
 ## Program Architecture
 
 ```
-frame-trails/
+RadarEchoTrails/
 ├── src/
 │   ├── main.rs        # GUI entry point, callbacks, and state management
 │   ├── processing.rs  # Core frame trails rendering logic (parallel)
@@ -190,7 +190,7 @@ flowchart LR
     B --> C[Sort by Filename]
     C --> D[Create Output Directory]
     D --> E[Process Frames]
-    
+
     subgraph "Per-Frame Processing"
         E --> F[Load Current Frame]
         F --> G[Create Background Canvas]
@@ -198,7 +198,7 @@ flowchart LR
         H --> I[Overlay Current Frame]
         I --> J[Save Output]
     end
-    
+
     J --> K{More Frames?}
     K -->|Yes| E
     K -->|No| L[Complete]
@@ -246,9 +246,9 @@ stateDiagram-v2
 | Limit | 0 | Maximum frames to process (0 = no limit) |
 
 Settings are automatically saved to the system configuration directory:
-- **macOS**: `~/Library/Application Support/com.radical.frame_trails_gui/`
-- **Linux**: `~/.config/frame_trails_gui/`
-- **Windows**: `C:\Users\<user>\AppData\Roaming\radical\frame_trails_gui\`
+- **macOS**: `~/Library/Application Support/com.imsel.radar_echo_trails/`
+- **Linux**: `~/.config/radar_echo_trails/`
+- **Windows**: `C:\Users\<user>\AppData\Roaming\imsel\radar_echo_trails\`
 
 ---
 

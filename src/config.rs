@@ -27,7 +27,7 @@ impl Default for Settings {
 }
 
 fn settings_path() -> Option<PathBuf> {
-    directories::ProjectDirs::from("com", "radical", "frame_trails_gui")
+    directories::ProjectDirs::from("com", "imsel", "radar_echo_trails")
         .map(|dirs| dirs.config_dir().join("settings.json"))
 }
 
