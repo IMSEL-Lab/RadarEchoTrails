@@ -165,6 +165,19 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
     
+    // Parse hex callback - parses hex string and updates picker RGB values
+    {
+        let ui_weak = ui.as_weak();
+        ui.on_parse_hex(move |hex_str| {
+            let ui = ui_weak.unwrap();
+            if let Some((r, g, b)) = parse_hex_color(&hex_str.to_string()) {
+                ui.set_picker_r(r as i32);
+                ui.set_picker_g(g as i32);
+                ui.set_picker_b(b as i32);
+            }
+        });
+    }
+    
     // Start processing callback
     {
         let ui_weak = ui.as_weak();
