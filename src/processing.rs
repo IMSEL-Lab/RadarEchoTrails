@@ -114,8 +114,14 @@ pub fn process_folders(
             continue;
         }
         
-        // Create output directory
-        let output_dir = folder.path.join("trails_output");
+        // Create output directory as sibling with _trail_N suffix
+        let folder_name = folder.path.file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("output");
+        let output_folder_name = format!("{}_trail_{}", folder_name, settings.history_length);
+        let output_dir = folder.path.parent()
+            .map(|p| p.join(&output_folder_name))
+            .unwrap_or_else(|| folder.path.join("trails_output"));
         if let Err(e) = fs::create_dir_all(&output_dir) {
             let _ = tx.send(ProgressUpdate::FolderError {
                 folder_index: folder_idx,
