@@ -16,6 +16,18 @@ use std::thread;
 
 use slint::{ModelRc, SharedString, VecModel};
 
+/// Parse a hex color string like "#ff0000" to (r, g, b) tuple
+fn parse_hex_color(hex: &str) -> Option<(u8, u8, u8)> {
+    let hex = hex.trim_start_matches('#');
+    if hex.len() != 6 {
+        return None;
+    }
+    let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
+    let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
+    let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+    Some((r, g, b))
+}
+
 fn main() -> Result<(), slint::PlatformError> {
     let ui = AppWindow::new()?;
     
@@ -30,11 +42,25 @@ fn main() -> Result<(), slint::PlatformError> {
     // Load saved settings
     if let Ok(settings) = config::load_settings() {
         ui.set_history_length(settings.history_length);
-        ui.set_background_color(settings.background_color.into());
-        ui.set_current_color(settings.current_color.into());
-        ui.set_history_color(settings.history_color.into());
         ui.set_threads(settings.threads);
         ui.set_limit(settings.limit);
+        
+        // Parse hex colors to RGB components
+        if let Some((r, g, b)) = parse_hex_color(&settings.background_color) {
+            ui.set_bg_r(r as i32);
+            ui.set_bg_g(g as i32);
+            ui.set_bg_b(b as i32);
+        }
+        if let Some((r, g, b)) = parse_hex_color(&settings.current_color) {
+            ui.set_cur_r(r as i32);
+            ui.set_cur_g(g as i32);
+            ui.set_cur_b(b as i32);
+        }
+        if let Some((r, g, b)) = parse_hex_color(&settings.history_color) {
+            ui.set_hist_r(r as i32);
+            ui.set_hist_g(g as i32);
+            ui.set_hist_b(b as i32);
+        }
     }
     
     // Add folder callback
@@ -126,12 +152,12 @@ fn main() -> Result<(), slint::PlatformError> {
     
     // Settings changed callback
     {
-        ui.on_settings_changed(move |history_length, background_color, current_color, history_color, threads, limit| {
+        ui.on_settings_changed(move |history_length, threads, limit, bg_r, bg_g, bg_b, cur_r, cur_g, cur_b, hist_r, hist_g, hist_b| {
             let settings = config::Settings {
                 history_length,
-                background_color: background_color.to_string(),
-                current_color: current_color.to_string(),
-                history_color: history_color.to_string(),
+                background_color: format!("#{:02x}{:02x}{:02x}", bg_r, bg_g, bg_b),
+                current_color: format!("#{:02x}{:02x}{:02x}", cur_r, cur_g, cur_b),
+                history_color: format!("#{:02x}{:02x}{:02x}", hist_r, hist_g, hist_b),
                 threads,
                 limit,
             };
@@ -160,11 +186,21 @@ fn main() -> Result<(), slint::PlatformError> {
             stop_flag.store(false, Ordering::Relaxed);
             
             // Get settings
+            let bg_r = ui.get_bg_r() as u8;
+            let bg_g = ui.get_bg_g() as u8;
+            let bg_b = ui.get_bg_b() as u8;
+            let cur_r = ui.get_cur_r() as u8;
+            let cur_g = ui.get_cur_g() as u8;
+            let cur_b = ui.get_cur_b() as u8;
+            let hist_r = ui.get_hist_r() as u8;
+            let hist_g = ui.get_hist_g() as u8;
+            let hist_b = ui.get_hist_b() as u8;
+            
             let settings = processing::ProcessingSettings {
                 history_length: ui.get_history_length() as usize,
-                background_color: ui.get_background_color().to_string(),
-                current_color: ui.get_current_color().to_string(),
-                history_color: ui.get_history_color().to_string(),
+                background_color: format!("#{:02x}{:02x}{:02x}", bg_r, bg_g, bg_b),
+                current_color: format!("#{:02x}{:02x}{:02x}", cur_r, cur_g, cur_b),
+                history_color: format!("#{:02x}{:02x}{:02x}", hist_r, hist_g, hist_b),
                 threads: ui.get_threads() as usize,
                 limit: if ui.get_limit() == 0 { None } else { Some(ui.get_limit() as usize) },
             };
