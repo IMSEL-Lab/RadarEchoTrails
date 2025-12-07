@@ -19,7 +19,7 @@ import { ProgressPanel } from "components/progress_panel.slint";
 import { BottomBar } from "components/bottom_bar.slint";
 
 // ============================================================================
-// RGB SLIDER COMPONENT (local to this file)
+// RGB SLIDER COMPONENT
 // ============================================================================
 component RgbSlider inherits Rectangle {
     in property <string> label;
@@ -194,17 +194,17 @@ export component AppWindow inherits Window {
     callback start-processing();
     callback stop-processing();
     callback settings-changed(int, int, int, int, int, int, int, int, int, int, int, int);
+    callback parse-hex(string);
 
     // ========================================================================
     // UI STATE
     // ========================================================================
     property <bool> help-visible: false;
-    property <int> picker-active: 0;  // 0=none, 1=background, 2=current, 3=history
-    property <int> picker-r: 0;
-    property <int> picker-g: 0;
-    property <int> picker-b: 0;
+    property <int> picker-active: 0;
+    in-out property <int> picker-r: 0;
+    in-out property <int> picker-g: 0;
+    in-out property <int> picker-b: 0;
 
-    // Preset colors
     property <[color]> preset-colors: [
         #000000,
         #1a1a1a,
@@ -233,9 +233,6 @@ export component AppWindow inherits Window {
     // MAIN LAYOUT
     // ========================================================================
     VerticalLayout {
-        // ====================================================================
-        // TOP BAR
-        // ====================================================================
         TopBar {
             file-add-folder => {
                 root.add-folder();
@@ -256,15 +253,9 @@ export component AppWindow inherits Window {
             }
         }
 
-        // ====================================================================
-        // MAIN CONTENT
-        // ====================================================================
         HorizontalLayout {
             vertical-stretch: 1;
 
-            // ================================================================
-            // LEFT SIDEBAR
-            // ================================================================
             Rectangle {
                 width: 280px;
                 background: MaterialPalette.surface-container-low;
@@ -350,9 +341,6 @@ export component AppWindow inherits Window {
                 }
             }
 
-            // ================================================================
-            // MAIN AREA - PROGRESS
-            // ================================================================
             Rectangle {
                 horizontal-stretch: 1;
                 background: MaterialPalette.surface-container-lowest;
@@ -374,9 +362,6 @@ export component AppWindow inherits Window {
             }
         }
 
-        // ====================================================================
-        // BOTTOM BAR
-        // ====================================================================
         BottomBar {
             status-text: root.status-text;
             folders-in-queue: root.folders.length;
@@ -387,7 +372,7 @@ export component AppWindow inherits Window {
     }
 
     // ========================================================================
-    // COLOR PICKER MODAL (window-level overlay)
+    // COLOR PICKER MODAL
     // ========================================================================
     if root.picker-active > 0: Rectangle {
         width: 100%;
@@ -403,18 +388,18 @@ export component AppWindow inherits Window {
         Rectangle {
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
-            width: 320px;
-            height: 380px;
+            width: 360px;
+            height: 420px;
             border-radius: 16px;
             background: MaterialPalette.surface-container;
+            clip: true;
 
             TouchArea { }
 
             VerticalLayout {
                 padding: 20px;
-                spacing: 16px;
+                spacing: 12px;
 
-                // Header
                 MaterialText {
                     text: root.picker-active == 1 ? "Background Color" : root.picker-active == 2 ? "Current Frame Color" : "History Color";
                     style: MaterialTypography.title-large;
@@ -422,11 +407,9 @@ export component AppWindow inherits Window {
                     horizontal-alignment: center;
                 }
 
-                // Preview + Sliders
                 HorizontalLayout {
                     spacing: 16px;
 
-                    // Preview box
                     Rectangle {
                         width: 80px;
                         height: 80px;
@@ -436,7 +419,6 @@ export component AppWindow inherits Window {
                         border-color: MaterialPalette.outline-variant;
                     }
 
-                    // RGB Sliders
                     VerticalLayout {
                         horizontal-stretch: 1;
                         spacing: 8px;
@@ -461,14 +443,72 @@ export component AppWindow inherits Window {
                     }
                 }
 
-                // Presets label
+                // Hex input row
+                HorizontalLayout {
+                    spacing: 8px;
+
+                    MaterialText {
+                        text: "Hex:";
+                        style: MaterialTypography.label-medium;
+                        color: MaterialPalette.on-surface;
+                        vertical-alignment: center;
+                        width: 36px;
+                    }
+
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: 36px;
+                        border-radius: 6px;
+                        background: MaterialPalette.surface-container-low;
+                        border-width: 1px;
+                        border-color: hex-input.has-focus ? MaterialPalette.primary : MaterialPalette.outline-variant;
+
+                        hex-input := TextInput {
+                            x: 10px;
+                            width: parent.width - 20px;
+                            height: parent.height;
+                            text: "#000000";
+                            font-size: 14px;
+                            color: MaterialPalette.on-surface;
+                            vertical-alignment: center;
+
+                            accepted => {
+                                root.parse-hex(self.text);
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: 70px;
+                        height: 36px;
+                        border-radius: 6px;
+                        background: hex-btn.has-hover ? MaterialPalette.primary : MaterialPalette.primary-container;
+                        border-width: 1px;
+                        border-color: MaterialPalette.primary;
+
+                        hex-btn := TouchArea {
+                            clicked => {
+                                root.parse-hex(hex-input.text);
+                            }
+                            mouse-cursor: pointer;
+                        }
+
+                        MaterialText {
+                            text: "Apply";
+                            style: MaterialTypography.label-medium;
+                            color: hex-btn.has-hover ? MaterialPalette.on-primary : MaterialPalette.on-primary-container;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
                 MaterialText {
                     text: "Presets";
                     style: MaterialTypography.label-medium;
                     color: MaterialPalette.on-surface-variant;
                 }
 
-                // Preset grid
                 VerticalLayout {
                     spacing: 6px;
 
@@ -605,7 +645,6 @@ export component AppWindow inherits Window {
                     }
                 }
 
-                // Buttons
                 HorizontalLayout {
                     spacing: 12px;
 
@@ -716,42 +755,42 @@ export component AppWindow inherits Window {
                     spacing: 8px;
 
                     MaterialText {
-                        text: "• History Length — Number of previous frames to overlay.";
+                        text: "History Length - Number of previous frames to overlay.";
                         style: MaterialTypography.body-small;
                         color: MaterialPalette.on-surface;
                         wrap: word-wrap;
                     }
 
                     MaterialText {
-                        text: "• Threads — Parallel worker threads (0 = auto).";
+                        text: "Threads - Parallel worker threads (0 = auto).";
                         style: MaterialTypography.body-small;
                         color: MaterialPalette.on-surface;
                         wrap: word-wrap;
                     }
 
                     MaterialText {
-                        text: "• Frame Limit — Maximum frames to process (0 = all).";
+                        text: "Frame Limit - Maximum frames to process (0 = all).";
                         style: MaterialTypography.body-small;
                         color: MaterialPalette.on-surface;
                         wrap: word-wrap;
                     }
 
                     MaterialText {
-                        text: "• Background — Background color for output images.";
+                        text: "Background - Background color for output images.";
                         style: MaterialTypography.body-small;
                         color: MaterialPalette.on-surface;
                         wrap: word-wrap;
                     }
 
                     MaterialText {
-                        text: "• Current Frame — Color for the current frame outline.";
+                        text: "Current Frame - Color for the current frame outline.";
                         style: MaterialTypography.body-small;
                         color: MaterialPalette.on-surface;
                         wrap: word-wrap;
                     }
 
                     MaterialText {
-                        text: "• History — Color for historical frame trails.";
+                        text: "History - Color for historical frame trails.";
                         style: MaterialTypography.body-small;
                         color: MaterialPalette.on-surface;
                         wrap: word-wrap;
