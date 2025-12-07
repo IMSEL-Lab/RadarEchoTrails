@@ -1,7 +1,7 @@
 // ============================================================================
 // SETTINGS PANEL COMPONENT - FRAME TRAILS
 // ============================================================================
-// Settings for frame trails processing with collapsible sections
+// Settings for frame trails processing with collapsible sections and color picker
 
 import { MaterialPalette } from "../material/ui/styling/material_palette.slint";
 import {
@@ -147,11 +147,124 @@ component SettingRow inherits Rectangle {
 }
 
 // ============================================================================
-// COLOR SWATCH COMPONENT
+// RGB SLIDER COMPONENT
+// ============================================================================
+component RgbSlider inherits Rectangle {
+    in property <string> label;
+    in-out property <int> value: 0;
+    in property <color> track-color: MaterialPalette.primary;
+    callback changed();
+
+    height: 32px;
+
+    HorizontalLayout {
+        spacing: 8px;
+
+        // Label
+        MaterialText {
+            text: root.label;
+            style: MaterialTypography.label-medium;
+            color: MaterialPalette.on-surface;
+            width: 20px;
+            vertical-alignment: center;
+        }
+
+        // Slider track
+        Rectangle {
+            horizontal-stretch: 1;
+            height: 24px;
+
+            // Background track
+            Rectangle {
+                y: (parent.height - self.height) / 2;
+                height: 8px;
+                border-radius: 4px;
+                background: MaterialPalette.surface-container-highest;
+            }
+
+            // Filled track
+            Rectangle {
+                y: (parent.height - self.height) / 2;
+                height: 8px;
+                width: parent.width * (root.value / 255.0);
+                border-radius: 4px;
+                background: root.track-color;
+            }
+
+            // Thumb
+            Rectangle {
+                x: parent.width * (root.value / 255.0) - 8px;
+                y: (parent.height - self.height) / 2;
+                width: 16px;
+                height: 16px;
+                border-radius: 8px;
+                background: root.track-color;
+                border-width: 2px;
+                border-color: MaterialPalette.on-primary;
+            }
+
+            slider-touch := TouchArea {
+                clicked => {
+                    root.value = Math.clamp(Math.round(self.mouse-x / parent.width * 255), 0, 255);
+                    root.changed();
+                }
+                moved => {
+                    if (self.pressed) {
+                        root.value = Math.clamp(Math.round(self.mouse-x / parent.width * 255), 0, 255);
+                        root.changed();
+                    }
+                }
+                mouse-cursor: pointer;
+            }
+        }
+
+        // Value display
+        Rectangle {
+            width: 40px;
+            height: 24px;
+            border-radius: 4px;
+            background: MaterialPalette.surface-container;
+
+            MaterialText {
+                text: root.value;
+                style: MaterialTypography.label-small;
+                color: MaterialPalette.on-surface;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+// ============================================================================
+// PRESET COLOR BUTTON
+// ============================================================================
+component PresetColor inherits Rectangle {
+    in property <color> preset-color;
+    in property <bool> selected: false;
+    callback clicked();
+
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: root.preset-color;
+    border-width: root.selected ? 3px : (touch.has-hover ? 2px : 0px);
+    border-color: root.selected ? MaterialPalette.primary : MaterialPalette.on-surface;
+
+    touch := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+        mouse-cursor: pointer;
+    }
+}
+
+// ============================================================================
+// COLOR SWATCH COMPONENT (updated with real color display)
 // ============================================================================
 component ColorSwatch inherits Rectangle {
     in property <string> label;
-    in property <string> hex-value;
+    in property <brush> color-brush;
     callback clicked();
 
     height: 44px;
@@ -172,9 +285,9 @@ component ColorSwatch inherits Rectangle {
                 vertical-alignment: center;
             }
 
-            // Color preview and hex value
+            // Color preview button
             Rectangle {
-                width: 100px;
+                width: 80px;
                 height: 28px;
                 border-radius: 4px;
                 background: swatch-touch.has-hover ? MaterialPalette.surface-container-high : MaterialPalette.surface-container;
@@ -183,22 +296,25 @@ component ColorSwatch inherits Rectangle {
 
                 HorizontalLayout {
                     padding: 4px;
-                    spacing: 8px;
+                    spacing: 4px;
 
-                    // Color swatch
+                    // Color swatch with actual color
                     Rectangle {
-                        width: 20px;
+                        width: 36px;
                         height: 20px;
                         border-radius: 4px;
-                        background: MaterialPalette.tertiary;
+                        background: root.color-brush;
+                        border-width: 1px;
+                        border-color: MaterialPalette.outline-variant;
                     }
 
-                    MaterialText {
-                        text: root.hex-value;
-                        style: MaterialTypography.label-small;
-                        color: MaterialPalette.on-surface;
-                        horizontal-stretch: 1;
-                        vertical-alignment: center;
+                    // Edit icon
+                    Icon {
+                        source: Icons.edit;
+                        colorize: MaterialPalette.on-surface-variant;
+                        width: 14px;
+                        height: 14px;
+                        y: (parent.height - self.height) / 2;
                     }
                 }
 
@@ -219,129 +335,469 @@ component ColorSwatch inherits Rectangle {
 export component SettingsPanel {
     // Settings values
     in-out property <int> history-length: 5;
-    in-out property <string> background-color: "#000000";
-    in-out property <string> current-color: "#00ff00";
-    in-out property <string> history-color: "#ff7f00";
     in-out property <int> threads: 0;
-    in-out property <int> limit: 0;  // 0 means no limit
+    in-out property <int> limit: 0;
+
+    // Color properties - brush for display, RGB for picker
+    in-out property <brush> background-brush: #000000;
+    in-out property <brush> current-brush: #00ff00;
+    in-out property <brush> history-brush: #ff7f00;
+
+    // RGB components for sliders (0-255)
+    in-out property <int> bg-r: 0;
+    in-out property <int> bg-g: 0;
+    in-out property <int> bg-b: 0;
+    in-out property <int> cur-r: 0;
+    in-out property <int> cur-g: 255;
+    in-out property <int> cur-b: 0;
+    in-out property <int> hist-r: 255;
+    in-out property <int> hist-g: 127;
+    in-out property <int> hist-b: 0;
 
     // Section visibility
     property <bool> render-expanded: true;
     property <bool> colors-expanded: true;
 
+    // Color picker state
+    property <int> picker-active: 0;  // 0=none, 1=background, 2=current, 3=history
+    property <int> picker-r: 0;
+    property <int> picker-g: 0;
+    property <int> picker-b: 0;
+
     callback settings-changed();
 
-    Flickable {
-        viewport-height: content.preferred-height;
+    // Preset colors for quick selection
+    property <[color]> preset-colors: [
+        #000000,
+        #1a1a1a,
+        #333333,
+        #666666,
+        #999999,
+        #cccccc,
+        #ffffff,
+        #ff0000,
+        #ff7f00,
+        #ffff00,
+        #00ff00,
+        #00ffff,
+        #0000ff,
+        #ff00ff,
+        #800000,
+        #804000,
+        #808000,
+        #008000,
+        #008080,
+        #000080,
+        #800080
+    ];
 
-        content := VerticalLayout {
-            spacing: 4px;
-            padding-bottom: 8px;
+    VerticalLayout {
+        Flickable {
+            vertical-stretch: 1;
+            viewport-height: content.preferred-height;
 
-            // ================================================================
-            // RENDER SETTINGS SECTION
-            // ================================================================
-            SectionHeader {
-                title: "Render Settings";
-                expanded <=> root.render-expanded;
-            }
+            content := VerticalLayout {
+                spacing: 4px;
+                padding-bottom: 8px;
 
-            if root.render-expanded: VerticalLayout {
-                spacing: 2px;
-
-                SettingRow {
-                    label: "History Length";
-                    value: root.history-length;
-                    increment => {
-                        root.history-length = Math.min(root.history-length + 1, 20);
-                        root.settings-changed();
-                    }
-                    decrement => {
-                        root.history-length = Math.max(root.history-length - 1, 1);
-                        root.settings-changed();
-                    }
+                // ================================================================
+                // RENDER SETTINGS SECTION
+                // ================================================================
+                SectionHeader {
+                    title: "Render Settings";
+                    expanded <=> root.render-expanded;
                 }
 
-                SettingRow {
-                    label: "Num. Workers";
-                    value: root.threads == 0 ? "auto" : root.threads;
-                    increment => {
-                        root.threads = Math.min(root.threads + 1, 32);
-                        root.settings-changed();
-                    }
-                    decrement => {
-                        root.threads = Math.max(root.threads - 1, 0);
-                        root.settings-changed();
-                    }
-                }
+                if root.render-expanded: VerticalLayout {
+                    spacing: 2px;
 
-                SettingRow {
-                    label: "Frame Limit";
-                    value: root.limit == 0 ? "none" : root.limit;
-                    increment => {
-                        root.limit = root.limit + 100;
-                        root.settings-changed();
-                    }
-                    decrement => {
-                        root.limit = Math.max(root.limit - 100, 0);
-                        root.settings-changed();
-                    }
-                }
-            }
-
-            // ================================================================
-            // COLORS SECTION
-            // ================================================================
-            SectionHeader {
-                title: "Colors";
-                expanded <=> root.colors-expanded;
-            }
-
-            if root.colors-expanded: VerticalLayout {
-                spacing: 2px;
-
-                ColorSwatch {
-                    label: "Background";
-                    hex-value: root.background-color;
-                    clicked => {
-                        if (root.background-color == "#000000") {
-                            root.background-color = "#1a1a1a";
-                        } else if (root.background-color == "#1a1a1a") {
-                            root.background-color = "#333333";
-                        } else {
-                            root.background-color = "#000000";
+                    SettingRow {
+                        label: "History Length";
+                        value: root.history-length;
+                        increment => {
+                            root.history-length = Math.min(root.history-length + 1, 20);
+                            root.settings-changed();
                         }
-                        root.settings-changed();
+                        decrement => {
+                            root.history-length = Math.max(root.history-length - 1, 1);
+                            root.settings-changed();
+                        }
+                    }
+
+                    SettingRow {
+                        label: "Num. Workers";
+                        value: root.threads == 0 ? "auto" : root.threads;
+                        increment => {
+                            root.threads = Math.min(root.threads + 1, 32);
+                            root.settings-changed();
+                        }
+                        decrement => {
+                            root.threads = Math.max(root.threads - 1, 0);
+                            root.settings-changed();
+                        }
+                    }
+
+                    SettingRow {
+                        label: "Frame Limit";
+                        value: root.limit == 0 ? "none" : root.limit;
+                        increment => {
+                            root.limit = root.limit + 100;
+                            root.settings-changed();
+                        }
+                        decrement => {
+                            root.limit = Math.max(root.limit - 100, 0);
+                            root.settings-changed();
+                        }
                     }
                 }
 
-                ColorSwatch {
-                    label: "Current Frame";
-                    hex-value: root.current-color;
-                    clicked => {
-                        if (root.current-color == "#00ff00") {
-                            root.current-color = "#ffffff";
-                        } else if (root.current-color == "#ffffff") {
-                            root.current-color = "#00ffff";
-                        } else {
-                            root.current-color = "#00ff00";
+                // ================================================================
+                // COLORS SECTION
+                // ================================================================
+                SectionHeader {
+                    title: "Colors";
+                    expanded <=> root.colors-expanded;
+                }
+
+                if root.colors-expanded: VerticalLayout {
+                    spacing: 2px;
+
+                    ColorSwatch {
+                        label: "Background";
+                        color-brush: root.background-brush;
+                        clicked => {
+                            root.picker-r = root.bg-r;
+                            root.picker-g = root.bg-g;
+                            root.picker-b = root.bg-b;
+                            root.picker-active = 1;
                         }
-                        root.settings-changed();
+                    }
+
+                    ColorSwatch {
+                        label: "Current Frame";
+                        color-brush: root.current-brush;
+                        clicked => {
+                            root.picker-r = root.cur-r;
+                            root.picker-g = root.cur-g;
+                            root.picker-b = root.cur-b;
+                            root.picker-active = 2;
+                        }
+                    }
+
+                    ColorSwatch {
+                        label: "History";
+                        color-brush: root.history-brush;
+                        clicked => {
+                            root.picker-r = root.hist-r;
+                            root.picker-g = root.hist-g;
+                            root.picker-b = root.hist-b;
+                            root.picker-active = 3;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ========================================================================
+    // COLOR PICKER POPUP
+    // ========================================================================
+    if root.picker-active > 0: Rectangle {
+        x: 0;
+        y: 0;
+        width: 100%;
+        height: 100%;
+        background: #00000088;
+
+        // Dismiss on background click
+        TouchArea {
+            clicked => {
+                root.picker-active = 0;
+            }
+        }
+
+        // Picker dialog
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: 260px;
+            height: 340px;
+            border-radius: 12px;
+            background: MaterialPalette.surface-container;
+            
+            // Prevent background click from closing
+            TouchArea { }
+
+            VerticalLayout {
+                padding: 16px;
+                spacing: 12px;
+
+                // Header
+                MaterialText {
+                    text: root.picker-active == 1 ? "Background Color" : root.picker-active == 2 ? "Current Frame Color" : "History Color";
+                    style: MaterialTypography.title-medium;
+                    color: MaterialPalette.on-surface;
+                }
+
+                // Divider
+                Rectangle {
+                    height: 1px;
+                    background: MaterialPalette.outline-variant;
+                }
+
+                // Preview box
+                HorizontalLayout {
+                    spacing: 12px;
+
+                    Rectangle {
+                        width: 60px;
+                        height: 60px;
+                        border-radius: 8px;
+                        background: Colors.rgb(root.picker-r, root.picker-g, root.picker-b);
+                        border-width: 1px;
+                        border-color: MaterialPalette.outline-variant;
+                    }
+
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+
+                        RgbSlider {
+                            label: "R";
+                            value <=> root.picker-r;
+                            track-color: #ff4444;
+                        }
+
+                        RgbSlider {
+                            label: "G";
+                            value <=> root.picker-g;
+                            track-color: #44ff44;
+                        }
+
+                        RgbSlider {
+                            label: "B";
+                            value <=> root.picker-b;
+                            track-color: #4444ff;
+                        }
                     }
                 }
 
-                ColorSwatch {
-                    label: "History";
-                    hex-value: root.history-color;
-                    clicked => {
-                        if (root.history-color == "#ff7f00") {
-                            root.history-color = "#ff0000";
-                        } else if (root.history-color == "#ff0000") {
-                            root.history-color = "#ffff00";
-                        } else {
-                            root.history-color = "#ff7f00";
+                // Preset colors
+                MaterialText {
+                    text: "Presets";
+                    style: MaterialTypography.label-medium;
+                    color: MaterialPalette.on-surface-variant;
+                }
+
+                // Preset grid
+                VerticalLayout {
+                    spacing: 4px;
+
+                    HorizontalLayout {
+                        spacing: 4px;
+                        for i in 7: PresetColor {
+                            preset-color: root.preset-colors[i];
+                            clicked => {
+                                // Parse preset color to RGB
+                                if (i == 0) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 0;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 1) {
+                                    root.picker-r = 26;
+                                    root.picker-g = 26;
+                                    root.picker-b = 26;
+                                }
+                                if (i == 2) {
+                                    root.picker-r = 51;
+                                    root.picker-g = 51;
+                                    root.picker-b = 51;
+                                }
+                                if (i == 3) {
+                                    root.picker-r = 102;
+                                    root.picker-g = 102;
+                                    root.picker-b = 102;
+                                }
+                                if (i == 4) {
+                                    root.picker-r = 153;
+                                    root.picker-g = 153;
+                                    root.picker-b = 153;
+                                }
+                                if (i == 5) {
+                                    root.picker-r = 204;
+                                    root.picker-g = 204;
+                                    root.picker-b = 204;
+                                }
+                                if (i == 6) {
+                                    root.picker-r = 255;
+                                    root.picker-g = 255;
+                                    root.picker-b = 255;
+                                }
+                            }
                         }
-                        root.settings-changed();
+                    }
+
+                    HorizontalLayout {
+                        spacing: 4px;
+                        for i in 7: PresetColor {
+                            preset-color: root.preset-colors[7 + i];
+                            clicked => {
+                                if (i == 0) {
+                                    root.picker-r = 255;
+                                    root.picker-g = 0;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 1) {
+                                    root.picker-r = 255;
+                                    root.picker-g = 127;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 2) {
+                                    root.picker-r = 255;
+                                    root.picker-g = 255;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 3) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 255;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 4) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 255;
+                                    root.picker-b = 255;
+                                }
+                                if (i == 5) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 0;
+                                    root.picker-b = 255;
+                                }
+                                if (i == 6) {
+                                    root.picker-r = 255;
+                                    root.picker-g = 0;
+                                    root.picker-b = 255;
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 4px;
+                        for i in 7: PresetColor {
+                            preset-color: root.preset-colors[14 + i];
+                            clicked => {
+                                if (i == 0) {
+                                    root.picker-r = 128;
+                                    root.picker-g = 0;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 1) {
+                                    root.picker-r = 128;
+                                    root.picker-g = 64;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 2) {
+                                    root.picker-r = 128;
+                                    root.picker-g = 128;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 3) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 128;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 4) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 128;
+                                    root.picker-b = 128;
+                                }
+                                if (i == 5) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 0;
+                                    root.picker-b = 128;
+                                }
+                                if (i == 6) {
+                                    root.picker-r = 128;
+                                    root.picker-g = 0;
+                                    root.picker-b = 128;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Spacer
+                Rectangle {
+                    vertical-stretch: 1;
+                }
+
+                // Buttons
+                HorizontalLayout {
+                    spacing: 8px;
+
+                    // Cancel
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: 36px;
+                        border-radius: 8px;
+                        background: cancel-touch.has-hover ? MaterialPalette.surface-container-highest : MaterialPalette.surface-container-high;
+
+                        cancel-touch := TouchArea {
+                            clicked => {
+                                root.picker-active = 0;
+                            }
+                            mouse-cursor: pointer;
+                        }
+
+                        MaterialText {
+                            text: "Cancel";
+                            style: MaterialTypography.label-large;
+                            color: MaterialPalette.on-surface;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // Apply
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: 36px;
+                        border-radius: 8px;
+                        background: apply-touch.has-hover ? MaterialPalette.primary : MaterialPalette.primary-container;
+
+                        apply-touch := TouchArea {
+                            clicked => {
+                                // Apply to the active color
+                                if (root.picker-active == 1) {
+                                    root.bg-r = root.picker-r;
+                                    root.bg-g = root.picker-g;
+                                    root.bg-b = root.picker-b;
+                                    root.background-brush = Colors.rgb(root.picker-r, root.picker-g, root.picker-b);
+                                } else if (root.picker-active == 2) {
+                                    root.cur-r = root.picker-r;
+                                    root.cur-g = root.picker-g;
+                                    root.cur-b = root.picker-b;
+                                    root.current-brush = Colors.rgb(root.picker-r, root.picker-g, root.picker-b);
+                                } else if (root.picker-active == 3) {
+                                    root.hist-r = root.picker-r;
+                                    root.hist-g = root.picker-g;
+                                    root.hist-b = root.picker-b;
+                                    root.history-brush = Colors.rgb(root.picker-r, root.picker-g, root.picker-b);
+                                }
+                                root.picker-active = 0;
+                                root.settings-changed();
+                            }
+                            mouse-cursor: pointer;
+                        }
+
+                        MaterialText {
+                            text: "Apply";
+                            style: MaterialTypography.label-large;
+                            color: apply-touch.has-hover ? MaterialPalette.on-primary : MaterialPalette.on-primary-container;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
                     }
                 }
             }
