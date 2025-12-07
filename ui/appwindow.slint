@@ -482,75 +482,76 @@ export component AppWindow inherits Window {
                         for i in 15: PresetColor {
                             preset-color: root.preset-colors[i];
                             clicked => {
+                                // Row 1: #000000, #1a1a1a, #333333, #4d4d4d, #666666, #808080, #999999, #b3b3b3, #cccccc, #ffffff, #ff0000, #00ff00, #0000ff, #ffff00, #ff00ff
                                 if (i == 0) {
                                     root.picker-r = 0;
                                     root.picker-g = 0;
                                     root.picker-b = 0;
                                 }
                                 if (i == 1) {
-                                    root.picker-r = 34;
-                                    root.picker-g = 34;
-                                    root.picker-b = 34;
+                                    root.picker-r = 26;
+                                    root.picker-g = 26;
+                                    root.picker-b = 26;
                                 }
                                 if (i == 2) {
-                                    root.picker-r = 68;
-                                    root.picker-g = 68;
-                                    root.picker-b = 68;
+                                    root.picker-r = 51;
+                                    root.picker-g = 51;
+                                    root.picker-b = 51;
                                 }
                                 if (i == 3) {
+                                    root.picker-r = 77;
+                                    root.picker-g = 77;
+                                    root.picker-b = 77;
+                                }
+                                if (i == 4) {
                                     root.picker-r = 102;
                                     root.picker-g = 102;
                                     root.picker-b = 102;
                                 }
-                                if (i == 4) {
-                                    root.picker-r = 136;
-                                    root.picker-g = 136;
-                                    root.picker-b = 136;
-                                }
                                 if (i == 5) {
-                                    root.picker-r = 170;
-                                    root.picker-g = 170;
-                                    root.picker-b = 170;
+                                    root.picker-r = 128;
+                                    root.picker-g = 128;
+                                    root.picker-b = 128;
                                 }
                                 if (i == 6) {
+                                    root.picker-r = 153;
+                                    root.picker-g = 153;
+                                    root.picker-b = 153;
+                                }
+                                if (i == 7) {
+                                    root.picker-r = 179;
+                                    root.picker-g = 179;
+                                    root.picker-b = 179;
+                                }
+                                if (i == 8) {
                                     root.picker-r = 204;
                                     root.picker-g = 204;
                                     root.picker-b = 204;
                                 }
-                                if (i == 7) {
+                                if (i == 9) {
                                     root.picker-r = 255;
                                     root.picker-g = 255;
                                     root.picker-b = 255;
-                                }
-                                if (i == 8) {
-                                    root.picker-r = 255;
-                                    root.picker-g = 0;
-                                    root.picker-b = 0;
-                                }
-                                if (i == 9) {
-                                    root.picker-r = 0;
-                                    root.picker-g = 255;
-                                    root.picker-b = 0;
                                 }
                                 if (i == 10) {
-                                    root.picker-r = 0;
+                                    root.picker-r = 255;
                                     root.picker-g = 0;
-                                    root.picker-b = 255;
+                                    root.picker-b = 0;
                                 }
                                 if (i == 11) {
-                                    root.picker-r = 255;
+                                    root.picker-r = 0;
                                     root.picker-g = 255;
                                     root.picker-b = 0;
                                 }
                                 if (i == 12) {
-                                    root.picker-r = 255;
+                                    root.picker-r = 0;
                                     root.picker-g = 0;
                                     root.picker-b = 255;
                                 }
                                 if (i == 13) {
-                                    root.picker-r = 0;
+                                    root.picker-r = 255;
                                     root.picker-g = 255;
-                                    root.picker-b = 255;
+                                    root.picker-b = 0;
                                 }
                                 if (i == 14) {
                                     root.picker-r = 255;
@@ -566,80 +567,81 @@ export component AppWindow inherits Window {
                         for i in 15: PresetColor {
                             preset-color: root.preset-colors[15 + i];
                             clicked => {
+                                // Row 2: #00ffff, #ff7f00, #7fff00, #00ff7f, #007fff, #7f00ff, #ff007f, #800000, #008000, #000080, #808000, #008080, #800080, #804000, #408000
                                 if (i == 0) {
-                                    root.picker-r = 255;
-                                    root.picker-g = 127;
-                                    root.picker-b = 0;
+                                    root.picker-r = 0;
+                                    root.picker-g = 255;
+                                    root.picker-b = 255;
                                 }
                                 if (i == 1) {
-                                    root.picker-r = 127;
-                                    root.picker-g = 255;
+                                    root.picker-r = 255;
+                                    root.picker-g = 127;
                                     root.picker-b = 0;
                                 }
                                 if (i == 2) {
+                                    root.picker-r = 127;
+                                    root.picker-g = 255;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 3) {
                                     root.picker-r = 0;
                                     root.picker-g = 255;
                                     root.picker-b = 127;
                                 }
-                                if (i == 3) {
+                                if (i == 4) {
                                     root.picker-r = 0;
                                     root.picker-g = 127;
                                     root.picker-b = 255;
                                 }
-                                if (i == 4) {
+                                if (i == 5) {
                                     root.picker-r = 127;
                                     root.picker-g = 0;
                                     root.picker-b = 255;
                                 }
-                                if (i == 5) {
+                                if (i == 6) {
                                     root.picker-r = 255;
                                     root.picker-g = 0;
                                     root.picker-b = 127;
                                 }
-                                if (i == 6) {
+                                if (i == 7) {
                                     root.picker-r = 128;
                                     root.picker-g = 0;
-                                    root.picker-b = 0;
-                                }
-                                if (i == 7) {
-                                    root.picker-r = 0;
-                                    root.picker-g = 128;
                                     root.picker-b = 0;
                                 }
                                 if (i == 8) {
                                     root.picker-r = 0;
+                                    root.picker-g = 128;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 9) {
+                                    root.picker-r = 0;
                                     root.picker-g = 0;
                                     root.picker-b = 128;
                                 }
-                                if (i == 9) {
+                                if (i == 10) {
                                     root.picker-r = 128;
                                     root.picker-g = 128;
                                     root.picker-b = 0;
                                 }
-                                if (i == 10) {
+                                if (i == 11) {
                                     root.picker-r = 0;
                                     root.picker-g = 128;
-                                    root.picker-b = 128;
-                                }
-                                if (i == 11) {
-                                    root.picker-r = 128;
-                                    root.picker-g = 0;
                                     root.picker-b = 128;
                                 }
                                 if (i == 12) {
                                     root.picker-r = 128;
-                                    root.picker-g = 64;
-                                    root.picker-b = 0;
+                                    root.picker-g = 0;
+                                    root.picker-b = 128;
                                 }
                                 if (i == 13) {
-                                    root.picker-r = 64;
-                                    root.picker-g = 128;
+                                    root.picker-r = 128;
+                                    root.picker-g = 64;
                                     root.picker-b = 0;
                                 }
                                 if (i == 14) {
-                                    root.picker-r = 0;
-                                    root.picker-g = 64;
-                                    root.picker-b = 128;
+                                    root.picker-r = 64;
+                                    root.picker-g = 128;
+                                    root.picker-b = 0;
                                 }
                             }
                         }
