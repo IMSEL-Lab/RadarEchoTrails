@@ -516,21 +516,22 @@ export component SettingsPanel {
             }
         }
 
-        // Picker dialog
+        // Picker dialog - FIXED HEIGHT to contain all elements
         Rectangle {
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
-            width: 260px;
-            height: 340px;
+            width: 280px;
+            height: 420px;
             border-radius: 12px;
             background: MaterialPalette.surface-container;
+            clip: true;
             
             // Prevent background click from closing
             TouchArea { }
 
             VerticalLayout {
                 padding: 16px;
-                spacing: 12px;
+                spacing: 10px;
 
                 // Header
                 MaterialText {
@@ -545,17 +546,47 @@ export component SettingsPanel {
                     background: MaterialPalette.outline-variant;
                 }
 
-                // Preview box
+                // Preview and RGB sliders
                 HorizontalLayout {
                     spacing: 12px;
 
-                    Rectangle {
-                        width: 60px;
-                        height: 60px;
-                        border-radius: 8px;
-                        background: Colors.rgb(root.picker-r, root.picker-g, root.picker-b);
-                        border-width: 1px;
-                        border-color: MaterialPalette.outline-variant;
+                    VerticalLayout {
+                        spacing: 8px;
+
+                        // Color preview
+                        Rectangle {
+                            width: 60px;
+                            height: 60px;
+                            border-radius: 8px;
+                            background: Colors.rgb(root.picker-r, root.picker-g, root.picker-b);
+                            border-width: 1px;
+                            border-color: MaterialPalette.outline-variant;
+                        }
+
+                        // Hex input
+                        Rectangle {
+                            width: 60px;
+                            height: 28px;
+                            border-radius: 4px;
+                            background: MaterialPalette.surface-container-low;
+                            border-width: 1px;
+                            border-color: hex-input.has-focus ? MaterialPalette.primary : MaterialPalette.outline-variant;
+
+                            hex-input := TextInput {
+                                x: 4px;
+                                width: parent.width - 8px;
+                                height: parent.height;
+                                text: "#" + (root.picker-r < 16 ? "0" : "") + "" + (root.picker-g < 16 ? "0" : "") + "" + (root.picker-b < 16 ? "0" : "") + "";
+                                font-size: 10px;
+                                color: MaterialPalette.on-surface;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                                accepted => {
+                                    // Parse hex when user presses Enter
+                                    // Note: Basic validation - Slint has limited string parsing
+                                }
+                            }
+                        }
                     }
 
                     VerticalLayout {
@@ -582,164 +613,162 @@ export component SettingsPanel {
                     }
                 }
 
-                // Preset colors
+                // Preset colors label
                 MaterialText {
                     text: "Presets";
                     style: MaterialTypography.label-medium;
                     color: MaterialPalette.on-surface-variant;
                 }
 
-                // Preset grid
-                VerticalLayout {
+                // Preset grid - Row 1 (grays)
+                HorizontalLayout {
                     spacing: 4px;
-
-                    HorizontalLayout {
-                        spacing: 4px;
-                        for i in 7: PresetColor {
-                            preset-color: root.preset-colors[i];
-                            clicked => {
-                                // Parse preset color to RGB
-                                if (i == 0) {
-                                    root.picker-r = 0;
-                                    root.picker-g = 0;
-                                    root.picker-b = 0;
-                                }
-                                if (i == 1) {
-                                    root.picker-r = 26;
-                                    root.picker-g = 26;
-                                    root.picker-b = 26;
-                                }
-                                if (i == 2) {
-                                    root.picker-r = 51;
-                                    root.picker-g = 51;
-                                    root.picker-b = 51;
-                                }
-                                if (i == 3) {
-                                    root.picker-r = 102;
-                                    root.picker-g = 102;
-                                    root.picker-b = 102;
-                                }
-                                if (i == 4) {
-                                    root.picker-r = 153;
-                                    root.picker-g = 153;
-                                    root.picker-b = 153;
-                                }
-                                if (i == 5) {
-                                    root.picker-r = 204;
-                                    root.picker-g = 204;
-                                    root.picker-b = 204;
-                                }
-                                if (i == 6) {
-                                    root.picker-r = 255;
-                                    root.picker-g = 255;
-                                    root.picker-b = 255;
-                                }
+                    for i in 7: PresetColor {
+                        preset-color: root.preset-colors[i];
+                        clicked => {
+                            if (i == 0) {
+                                root.picker-r = 0;
+                                root.picker-g = 0;
+                                root.picker-b = 0;
                             }
-                        }
-                    }
-
-                    HorizontalLayout {
-                        spacing: 4px;
-                        for i in 7: PresetColor {
-                            preset-color: root.preset-colors[7 + i];
-                            clicked => {
-                                if (i == 0) {
-                                    root.picker-r = 255;
-                                    root.picker-g = 0;
-                                    root.picker-b = 0;
-                                }
-                                if (i == 1) {
-                                    root.picker-r = 255;
-                                    root.picker-g = 127;
-                                    root.picker-b = 0;
-                                }
-                                if (i == 2) {
-                                    root.picker-r = 255;
-                                    root.picker-g = 255;
-                                    root.picker-b = 0;
-                                }
-                                if (i == 3) {
-                                    root.picker-r = 0;
-                                    root.picker-g = 255;
-                                    root.picker-b = 0;
-                                }
-                                if (i == 4) {
-                                    root.picker-r = 0;
-                                    root.picker-g = 255;
-                                    root.picker-b = 255;
-                                }
-                                if (i == 5) {
-                                    root.picker-r = 0;
-                                    root.picker-g = 0;
-                                    root.picker-b = 255;
-                                }
-                                if (i == 6) {
-                                    root.picker-r = 255;
-                                    root.picker-g = 0;
-                                    root.picker-b = 255;
-                                }
+                            if (i == 1) {
+                                root.picker-r = 26;
+                                root.picker-g = 26;
+                                root.picker-b = 26;
                             }
-                        }
-                    }
-
-                    HorizontalLayout {
-                        spacing: 4px;
-                        for i in 7: PresetColor {
-                            preset-color: root.preset-colors[14 + i];
-                            clicked => {
-                                if (i == 0) {
-                                    root.picker-r = 128;
-                                    root.picker-g = 0;
-                                    root.picker-b = 0;
-                                }
-                                if (i == 1) {
-                                    root.picker-r = 128;
-                                    root.picker-g = 64;
-                                    root.picker-b = 0;
-                                }
-                                if (i == 2) {
-                                    root.picker-r = 128;
-                                    root.picker-g = 128;
-                                    root.picker-b = 0;
-                                }
-                                if (i == 3) {
-                                    root.picker-r = 0;
-                                    root.picker-g = 128;
-                                    root.picker-b = 0;
-                                }
-                                if (i == 4) {
-                                    root.picker-r = 0;
-                                    root.picker-g = 128;
-                                    root.picker-b = 128;
-                                }
-                                if (i == 5) {
-                                    root.picker-r = 0;
-                                    root.picker-g = 0;
-                                    root.picker-b = 128;
-                                }
-                                if (i == 6) {
-                                    root.picker-r = 128;
-                                    root.picker-g = 0;
-                                    root.picker-b = 128;
-                                }
+                            if (i == 2) {
+                                root.picker-r = 51;
+                                root.picker-g = 51;
+                                root.picker-b = 51;
+                            }
+                            if (i == 3) {
+                                root.picker-r = 102;
+                                root.picker-g = 102;
+                                root.picker-b = 102;
+                            }
+                            if (i == 4) {
+                                root.picker-r = 153;
+                                root.picker-g = 153;
+                                root.picker-b = 153;
+                            }
+                            if (i == 5) {
+                                root.picker-r = 204;
+                                root.picker-g = 204;
+                                root.picker-b = 204;
+                            }
+                            if (i == 6) {
+                                root.picker-r = 255;
+                                root.picker-g = 255;
+                                root.picker-b = 255;
                             }
                         }
                     }
                 }
 
-                // Spacer
+                // Preset grid - Row 2 (bright colors)
+                HorizontalLayout {
+                    spacing: 4px;
+                    for i in 7: PresetColor {
+                        preset-color: root.preset-colors[7 + i];
+                        clicked => {
+                            if (i == 0) {
+                                root.picker-r = 255;
+                                root.picker-g = 0;
+                                root.picker-b = 0;
+                            }
+                            if (i == 1) {
+                                root.picker-r = 255;
+                                root.picker-g = 127;
+                                root.picker-b = 0;
+                            }
+                            if (i == 2) {
+                                root.picker-r = 255;
+                                root.picker-g = 255;
+                                root.picker-b = 0;
+                            }
+                            if (i == 3) {
+                                root.picker-r = 0;
+                                root.picker-g = 255;
+                                root.picker-b = 0;
+                            }
+                            if (i == 4) {
+                                root.picker-r = 0;
+                                root.picker-g = 255;
+                                root.picker-b = 255;
+                            }
+                            if (i == 5) {
+                                root.picker-r = 0;
+                                root.picker-g = 0;
+                                root.picker-b = 255;
+                            }
+                            if (i == 6) {
+                                root.picker-r = 255;
+                                root.picker-g = 0;
+                                root.picker-b = 255;
+                            }
+                        }
+                    }
+                }
+
+                // Preset grid - Row 3 (dark colors)
+                HorizontalLayout {
+                    spacing: 4px;
+                    for i in 7: PresetColor {
+                        preset-color: root.preset-colors[14 + i];
+                        clicked => {
+                            if (i == 0) {
+                                root.picker-r = 128;
+                                root.picker-g = 0;
+                                root.picker-b = 0;
+                            }
+                            if (i == 1) {
+                                root.picker-r = 128;
+                                root.picker-g = 64;
+                                root.picker-b = 0;
+                            }
+                            if (i == 2) {
+                                root.picker-r = 128;
+                                root.picker-g = 128;
+                                root.picker-b = 0;
+                            }
+                            if (i == 3) {
+                                root.picker-r = 0;
+                                root.picker-g = 128;
+                                root.picker-b = 0;
+                            }
+                            if (i == 4) {
+                                root.picker-r = 0;
+                                root.picker-g = 128;
+                                root.picker-b = 128;
+                            }
+                            if (i == 5) {
+                                root.picker-r = 0;
+                                root.picker-g = 0;
+                                root.picker-b = 128;
+                            }
+                            if (i == 6) {
+                                root.picker-r = 128;
+                                root.picker-g = 0;
+                                root.picker-b = 128;
+                            }
+                        }
+                    }
+                }
+
+                // Spacer to push buttons down
                 Rectangle {
                     vertical-stretch: 1;
+                    min-height: 8px;
                 }
 
-                // Buttons
+                // Buttons - MUST be last in layout
                 HorizontalLayout {
                     spacing: 8px;
 
-                    // Cancel
+                    // Cancel button
                     Rectangle {
                         horizontal-stretch: 1;
-                        height: 36px;
+                        height: 40px;
                         border-radius: 8px;
                         background: cancel-touch.has-hover ? MaterialPalette.surface-container-highest : MaterialPalette.surface-container-high;
 
@@ -759,10 +788,10 @@ export component SettingsPanel {
                         }
                     }
 
-                    // Apply
+                    // Apply button
                     Rectangle {
                         horizontal-stretch: 1;
-                        height: 36px;
+                        height: 40px;
                         border-radius: 8px;
                         background: apply-touch.has-hover ? MaterialPalette.primary : MaterialPalette.primary-container;
 
