@@ -51,6 +51,7 @@ component RgbSlider inherits Rectangle {
             }
 
             Rectangle {
+                x: 0;
                 y: (parent.height - self.height) / 2;
                 height: 6px;
                 width: parent.width * (root.value / 255.0);
