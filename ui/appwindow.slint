@@ -8,6 +8,8 @@ import {
     MaterialTypography,
 } from "material/ui/styling/material_typography.slint";
 import { MaterialText } from "material/ui/components/material_text.slint";
+import { Icon } from "material/ui/components/icon.slint";
+import { Icons } from "material/ui/icons/icons.slint";
 
 import { AppTheme } from "app_theme.slint";
 import { TopBar } from "components/top_bar.slint";
@@ -15,6 +17,109 @@ import { FolderQueue, FolderItem } from "components/folder_queue.slint";
 import { SettingsPanel } from "components/settings_panel.slint";
 import { ProgressPanel } from "components/progress_panel.slint";
 import { BottomBar } from "components/bottom_bar.slint";
+
+// ============================================================================
+// RGB SLIDER COMPONENT (local to this file)
+// ============================================================================
+component RgbSlider inherits Rectangle {
+    in property <string> label;
+    in-out property <int> value: 0;
+    in property <color> track-color: MaterialPalette.primary;
+
+    height: 28px;
+
+    HorizontalLayout {
+        spacing: 8px;
+
+        MaterialText {
+            text: root.label;
+            style: MaterialTypography.label-medium;
+            color: MaterialPalette.on-surface;
+            width: 16px;
+            vertical-alignment: center;
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+            height: 24px;
+
+            Rectangle {
+                y: (parent.height - self.height) / 2;
+                height: 6px;
+                border-radius: 3px;
+                background: MaterialPalette.surface-container-highest;
+            }
+
+            Rectangle {
+                y: (parent.height - self.height) / 2;
+                height: 6px;
+                width: parent.width * (root.value / 255.0);
+                border-radius: 3px;
+                background: root.track-color;
+            }
+
+            Rectangle {
+                x: parent.width * (root.value / 255.0) - 8px;
+                y: (parent.height - self.height) / 2;
+                width: 16px;
+                height: 16px;
+                border-radius: 8px;
+                background: root.track-color;
+                border-width: 2px;
+                border-color: MaterialPalette.on-primary;
+            }
+
+            TouchArea {
+                clicked => {
+                    root.value = Math.clamp(Math.round(self.mouse-x / parent.width * 255), 0, 255);
+                }
+                moved => {
+                    if (self.pressed) {
+                        root.value = Math.clamp(Math.round(self.mouse-x / parent.width * 255), 0, 255);
+                    }
+                }
+                mouse-cursor: pointer;
+            }
+        }
+
+        Rectangle {
+            width: 36px;
+            height: 20px;
+            border-radius: 4px;
+            background: MaterialPalette.surface-container;
+
+            MaterialText {
+                text: root.value;
+                style: MaterialTypography.label-small;
+                color: MaterialPalette.on-surface;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+// ============================================================================
+// PRESET COLOR BUTTON
+// ============================================================================
+component PresetColor inherits Rectangle {
+    in property <color> preset-color;
+    callback clicked();
+
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    background: root.preset-color;
+    border-width: touch.has-hover ? 2px : 0px;
+    border-color: MaterialPalette.on-surface;
+
+    touch := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+        mouse-cursor: pointer;
+    }
+}
 
 // ============================================================================
 // MAIN APPLICATION WINDOW
@@ -94,6 +199,35 @@ export component AppWindow inherits Window {
     // UI STATE
     // ========================================================================
     property <bool> help-visible: false;
+    property <int> picker-active: 0;  // 0=none, 1=background, 2=current, 3=history
+    property <int> picker-r: 0;
+    property <int> picker-g: 0;
+    property <int> picker-b: 0;
+
+    // Preset colors
+    property <[color]> preset-colors: [
+        #000000,
+        #1a1a1a,
+        #333333,
+        #666666,
+        #999999,
+        #cccccc,
+        #ffffff,
+        #ff0000,
+        #ff7f00,
+        #ffff00,
+        #00ff00,
+        #00ffff,
+        #0000ff,
+        #ff00ff,
+        #800000,
+        #804000,
+        #808000,
+        #008000,
+        #008080,
+        #000080,
+        #800080
+    ];
 
     // ========================================================================
     // MAIN LAYOUT
@@ -129,21 +263,19 @@ export component AppWindow inherits Window {
             vertical-stretch: 1;
 
             // ================================================================
-            // LEFT SIDEBAR (permanent)
+            // LEFT SIDEBAR
             // ================================================================
             Rectangle {
                 width: 280px;
                 background: MaterialPalette.surface-container-low;
 
                 VerticalLayout {
-                    // Folder Queue with Start button
                     FolderQueue {
                         vertical-stretch: 1;
                         folders: root.folders;
                         selected-index: root.selected-folder-index;
                         is-processing: root.is-processing;
                         has-folders: root.folders.length > 0;
-
                         add-folder => {
                             root.add-folder();
                         }
@@ -167,47 +299,49 @@ export component AppWindow inherits Window {
                         }
                     }
 
-                    // Divider
                     Rectangle {
                         height: 1px;
                         background: MaterialPalette.outline-variant;
                     }
 
-                    // Settings Panel (scrollable)
                     SettingsPanel {
                         vertical-stretch: 1;
                         history-length <=> root.history-length;
                         threads <=> root.threads;
                         limit <=> root.limit;
-                        bg-r <=> root.bg-r;
-                        bg-g <=> root.bg-g;
-                        bg-b <=> root.bg-b;
-                        cur-r <=> root.cur-r;
-                        cur-g <=> root.cur-g;
-                        cur-b <=> root.cur-b;
-                        hist-r <=> root.hist-r;
-                        hist-g <=> root.hist-g;
-                        hist-b <=> root.hist-b;
+                        background-brush: Colors.rgb(root.bg-r, root.bg-g, root.bg-b);
+                        current-brush: Colors.rgb(root.cur-r, root.cur-g, root.cur-b);
+                        history-brush: Colors.rgb(root.hist-r, root.hist-g, root.hist-b);
 
                         settings-changed => {
                             root.settings-changed(
-                                root.history-length,
-                                root.threads,
-                                root.limit,
-                                root.bg-r,
-                                root.bg-g,
-                                root.bg-b,
-                                root.cur-r,
-                                root.cur-g,
-                                root.cur-b,
-                                root.hist-r,
-                                root.hist-g,
-                                root.hist-b);
+                                root.history-length, root.threads, root.limit,
+                                root.bg-r, root.bg-g, root.bg-b,
+                                root.cur-r, root.cur-g, root.cur-b,
+                                root.hist-r, root.hist-g, root.hist-b);
+                        }
+
+                        edit-background-color => {
+                            root.picker-r = root.bg-r;
+                            root.picker-g = root.bg-g;
+                            root.picker-b = root.bg-b;
+                            root.picker-active = 1;
+                        }
+                        edit-current-color => {
+                            root.picker-r = root.cur-r;
+                            root.picker-g = root.cur-g;
+                            root.picker-b = root.cur-b;
+                            root.picker-active = 2;
+                        }
+                        edit-history-color => {
+                            root.picker-r = root.hist-r;
+                            root.picker-g = root.hist-g;
+                            root.picker-b = root.hist-b;
+                            root.picker-active = 3;
                         }
                     }
                 }
 
-                // Right border
                 Rectangle {
                     x: parent.width - 1px;
                     width: 1px;
@@ -253,6 +387,295 @@ export component AppWindow inherits Window {
     }
 
     // ========================================================================
+    // COLOR PICKER MODAL (window-level overlay)
+    // ========================================================================
+    if root.picker-active > 0: Rectangle {
+        width: 100%;
+        height: 100%;
+        background: #000000aa;
+
+        TouchArea {
+            clicked => {
+                root.picker-active = 0;
+            }
+        }
+
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: 320px;
+            height: 380px;
+            border-radius: 16px;
+            background: MaterialPalette.surface-container;
+
+            TouchArea { }
+
+            VerticalLayout {
+                padding: 20px;
+                spacing: 16px;
+
+                // Header
+                MaterialText {
+                    text: root.picker-active == 1 ? "Background Color" : root.picker-active == 2 ? "Current Frame Color" : "History Color";
+                    style: MaterialTypography.title-large;
+                    color: MaterialPalette.on-surface;
+                    horizontal-alignment: center;
+                }
+
+                // Preview + Sliders
+                HorizontalLayout {
+                    spacing: 16px;
+
+                    // Preview box
+                    Rectangle {
+                        width: 80px;
+                        height: 80px;
+                        border-radius: 12px;
+                        background: Colors.rgb(root.picker-r, root.picker-g, root.picker-b);
+                        border-width: 2px;
+                        border-color: MaterialPalette.outline-variant;
+                    }
+
+                    // RGB Sliders
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 8px;
+
+                        RgbSlider {
+                            label: "R";
+                            value <=> root.picker-r;
+                            track-color: #ff4444;
+                        }
+
+                        RgbSlider {
+                            label: "G";
+                            value <=> root.picker-g;
+                            track-color: #44ff44;
+                        }
+
+                        RgbSlider {
+                            label: "B";
+                            value <=> root.picker-b;
+                            track-color: #4444ff;
+                        }
+                    }
+                }
+
+                // Presets label
+                MaterialText {
+                    text: "Presets";
+                    style: MaterialTypography.label-medium;
+                    color: MaterialPalette.on-surface-variant;
+                }
+
+                // Preset grid
+                VerticalLayout {
+                    spacing: 6px;
+
+                    HorizontalLayout {
+                        spacing: 6px;
+                        for i in 7: PresetColor {
+                            preset-color: root.preset-colors[i];
+                            clicked => {
+                                if (i == 0) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 0;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 1) {
+                                    root.picker-r = 26;
+                                    root.picker-g = 26;
+                                    root.picker-b = 26;
+                                }
+                                if (i == 2) {
+                                    root.picker-r = 51;
+                                    root.picker-g = 51;
+                                    root.picker-b = 51;
+                                }
+                                if (i == 3) {
+                                    root.picker-r = 102;
+                                    root.picker-g = 102;
+                                    root.picker-b = 102;
+                                }
+                                if (i == 4) {
+                                    root.picker-r = 153;
+                                    root.picker-g = 153;
+                                    root.picker-b = 153;
+                                }
+                                if (i == 5) {
+                                    root.picker-r = 204;
+                                    root.picker-g = 204;
+                                    root.picker-b = 204;
+                                }
+                                if (i == 6) {
+                                    root.picker-r = 255;
+                                    root.picker-g = 255;
+                                    root.picker-b = 255;
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 6px;
+                        for i in 7: PresetColor {
+                            preset-color: root.preset-colors[7 + i];
+                            clicked => {
+                                if (i == 0) {
+                                    root.picker-r = 255;
+                                    root.picker-g = 0;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 1) {
+                                    root.picker-r = 255;
+                                    root.picker-g = 127;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 2) {
+                                    root.picker-r = 255;
+                                    root.picker-g = 255;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 3) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 255;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 4) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 255;
+                                    root.picker-b = 255;
+                                }
+                                if (i == 5) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 0;
+                                    root.picker-b = 255;
+                                }
+                                if (i == 6) {
+                                    root.picker-r = 255;
+                                    root.picker-g = 0;
+                                    root.picker-b = 255;
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalLayout {
+                        spacing: 6px;
+                        for i in 7: PresetColor {
+                            preset-color: root.preset-colors[14 + i];
+                            clicked => {
+                                if (i == 0) {
+                                    root.picker-r = 128;
+                                    root.picker-g = 0;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 1) {
+                                    root.picker-r = 128;
+                                    root.picker-g = 64;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 2) {
+                                    root.picker-r = 128;
+                                    root.picker-g = 128;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 3) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 128;
+                                    root.picker-b = 0;
+                                }
+                                if (i == 4) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 128;
+                                    root.picker-b = 128;
+                                }
+                                if (i == 5) {
+                                    root.picker-r = 0;
+                                    root.picker-g = 0;
+                                    root.picker-b = 128;
+                                }
+                                if (i == 6) {
+                                    root.picker-r = 128;
+                                    root.picker-g = 0;
+                                    root.picker-b = 128;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Buttons
+                HorizontalLayout {
+                    spacing: 12px;
+
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: 44px;
+                        border-radius: 8px;
+                        background: cancel-touch.has-hover ? MaterialPalette.surface-container-highest : MaterialPalette.surface-container-high;
+
+                        cancel-touch := TouchArea {
+                            clicked => {
+                                root.picker-active = 0;
+                            }
+                            mouse-cursor: pointer;
+                        }
+
+                        MaterialText {
+                            text: "Cancel";
+                            style: MaterialTypography.label-large;
+                            color: MaterialPalette.on-surface;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: 44px;
+                        border-radius: 8px;
+                        background: apply-touch.has-hover ? MaterialPalette.primary : MaterialPalette.primary-container;
+
+                        apply-touch := TouchArea {
+                            clicked => {
+                                if (root.picker-active == 1) {
+                                    root.bg-r = root.picker-r;
+                                    root.bg-g = root.picker-g;
+                                    root.bg-b = root.picker-b;
+                                } else if (root.picker-active == 2) {
+                                    root.cur-r = root.picker-r;
+                                    root.cur-g = root.picker-g;
+                                    root.cur-b = root.picker-b;
+                                } else if (root.picker-active == 3) {
+                                    root.hist-r = root.picker-r;
+                                    root.hist-g = root.picker-g;
+                                    root.hist-b = root.picker-b;
+                                }
+                                root.picker-active = 0;
+                                root.settings-changed(
+                                    root.history-length, root.threads, root.limit,
+                                    root.bg-r, root.bg-g, root.bg-b,
+                                    root.cur-r, root.cur-g, root.cur-b,
+                                    root.hist-r, root.hist-g, root.hist-b);
+                            }
+                            mouse-cursor: pointer;
+                        }
+
+                        MaterialText {
+                            text: "Apply";
+                            style: MaterialTypography.label-large;
+                            color: apply-touch.has-hover ? MaterialPalette.on-primary : MaterialPalette.on-primary-container;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ========================================================================
     // HELP OVERLAY
     // ========================================================================
     if root.help-visible: Rectangle {
@@ -260,7 +683,7 @@ export component AppWindow inherits Window {
         height: 100%;
         background: #000000aa;
 
-        help-dismiss := TouchArea {
+        TouchArea {
             clicked => {
                 root.help-visible = false;
             }
@@ -273,6 +696,7 @@ export component AppWindow inherits Window {
             y: (parent.height - self.height) / 2;
             border-radius: 12px;
             background: MaterialPalette.surface-container;
+
             VerticalLayout {
                 padding: 20px;
                 spacing: 12px;
@@ -343,7 +767,7 @@ export component AppWindow inherits Window {
                     border-radius: 8px;
                     background: MaterialPalette.primary;
 
-                    close-touch := TouchArea {
+                    TouchArea {
                         clicked => {
                             root.help-visible = false;
                         }
