@@ -1,6 +1,6 @@
-//! Frame trails processing logic
-//! 
-//! Adapted from the original frame-trails CLI tool
+//! RadarEchoTrails processing logic
+//!
+//! Motion trail generation for radar image sequences
 
 use std::fs;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
